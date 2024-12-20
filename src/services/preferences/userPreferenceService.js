@@ -121,7 +121,7 @@ class UserPreferenceService {
   #createDefaultPreferences = async (userId) => {
     return await UserPreference.create({
       userId,
-      email: "", // This should be set when creating a user
+      email: `${userId}@example.com`, // Default email format using userId
       channels: {
         email: { enabled: true },
         sms: { enabled: false },
@@ -164,13 +164,23 @@ class UserPreferenceService {
    * @private
    */
   #validateThrottling = (throttling) => {
-    if (throttling.maxNotifications && throttling.maxNotifications < 1) {
-      throw new Error("Maximum notifications must be at least 1");
+    const errors = [];
+
+    if (throttling.maxNotifications !== undefined) {
+      if (throttling.maxNotifications < 1) {
+        errors.push("Maximum notifications must be at least 1");
+      }
     }
 
-    if (throttling.timeWindow && throttling.timeWindow < 60000) {
-      // 1 minute
-      throw new Error("Time window must be at least 1 minute");
+    if (throttling.timeWindow !== undefined) {
+      if (throttling.timeWindow < 60000) {
+        // 1 minute
+        errors.push("Time window must be at least 1 minute");
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(errors.join(", "));
     }
   };
 

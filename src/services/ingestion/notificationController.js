@@ -1,5 +1,5 @@
 import { Router } from "express";
-import Notification, { findById } from "../../models/notification";
+import Notification from "../../models/notification";
 import validateNotification from "./validator";
 import { publishToKafka } from "./kafkaProducer";
 
@@ -68,7 +68,7 @@ router.post("/notify", async (req, res) => {
  */
 router.get("/notify/:id", async (req, res) => {
   try {
-    const notification = await findById(req.params.id);
+    const notification = await Notification.findById(req.params.id);
 
     if (!notification) {
       return res.status(404).json({

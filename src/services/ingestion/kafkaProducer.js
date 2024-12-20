@@ -1,11 +1,11 @@
 import { Kafka } from "kafkajs";
-import { kafka } from "../../config";
+import config from "../../config";
 
 class KafkaProducer {
   constructor() {
     this.kafka = new Kafka({
-      clientId: kafka.clientId,
-      brokers: kafka.brokers,
+      clientId: config.kafka.clientId,
+      brokers: config.kafka.brokers,
     });
 
     this.producer = this.kafka.producer();
