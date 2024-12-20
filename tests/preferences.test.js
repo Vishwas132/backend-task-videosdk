@@ -1,6 +1,12 @@
 import request from "supertest";
+import { describe, it, expect, beforeEach } from "vitest";
 import app from "../src/app";
 import UserPreference from "../src/models/userPreference";
+
+beforeEach(async () => {
+  // Clear all user preferences before each test
+  await UserPreference.deleteMany({});
+});
 
 describe("User Preferences API", () => {
   const testUserId = "test-user-123";

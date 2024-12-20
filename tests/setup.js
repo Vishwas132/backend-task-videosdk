@@ -1,6 +1,7 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
-import { connect, disconnect } from "../src/utils/database";
+import database from "../src/utils/database";
+import { beforeAll, afterAll, afterEach } from "vitest";
 
 let mongoServer;
 
@@ -14,12 +15,12 @@ beforeAll(async () => {
   process.env.MONGODB_URI = mongoUri;
 
   // Connect to the in-memory database
-  await connect();
+  await database.connect();
 });
 
 // Cleanup after all tests
 afterAll(async () => {
-  await disconnect();
+  await database.disconnect();
   await mongoServer.stop();
 });
 

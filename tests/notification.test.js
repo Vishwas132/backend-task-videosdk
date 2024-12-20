@@ -1,6 +1,17 @@
 import request from "supertest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import app from "../src/app";
 import Notification from "../src/models/notification";
+
+// Mock the Kafka producer
+vi.mock("../src/services/ingestion/kafkaProducer", () => ({
+  publishToKafka: vi.fn().mockResolvedValue(undefined),
+}));
+
+beforeEach(() => {
+  // Clear all mocks before each test
+  vi.clearAllMocks();
+});
 
 describe("Notification API", () => {
   const testNotification = {
@@ -9,7 +20,7 @@ describe("Notification API", () => {
     content: "This is a test notification",
     priority: "high",
     channel: "email",
-    scheduledFor: new Date().toISOString(),
+    scheduledFor: new Date(Date.now() + 60000).toISOString(), // 1 minute in the future
     metadata: {
       category: "test",
     },
