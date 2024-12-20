@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
+import { Schema, model } from "mongoose";
 
-const userPreferenceSchema = new mongoose.Schema(
+const userPreferenceSchema = new Schema(
   {
     userId: {
       type: String,
@@ -93,4 +93,4 @@ const userPreferenceSchema = new mongoose.Schema(
 // Compound index for active users
 userPreferenceSchema.index({ userId: 1, active: 1 });
 
-module.exports = mongoose.model("UserPreference", userPreferenceSchema);
+export default model("UserPreference", userPreferenceSchema);

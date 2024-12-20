@@ -1,8 +1,7 @@
-const dotenv = require("dotenv");
-const path = require("path");
+import { config as _config } from "dotenv";
 
 // Load environment variables
-dotenv.config();
+_config();
 
 const config = {
   server: {
@@ -63,4 +62,4 @@ const config = {
   },
 };
 
-module.exports = config;
+export default config;

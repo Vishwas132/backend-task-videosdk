@@ -1,9 +1,9 @@
-const mongoose = require("mongoose");
+import { Schema, model } from "mongoose";
 
-const deliveryStatusSchema = new mongoose.Schema(
+const deliveryStatusSchema = new Schema(
   {
     notificationId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Notification",
       required: true,
       index: true,
@@ -43,7 +43,7 @@ const deliveryStatusSchema = new mongoose.Schema(
         },
         metadata: {
           type: Map,
-          of: mongoose.Schema.Types.Mixed,
+          of: Schema.Types.Mixed,
         },
       },
     ],
@@ -60,7 +60,7 @@ const deliveryStatusSchema = new mongoose.Schema(
     },
     metadata: {
       type: Map,
-      of: mongoose.Schema.Types.Mixed,
+      of: Schema.Types.Mixed,
       default: {},
     },
     // For email-specific tracking
@@ -122,4 +122,4 @@ deliveryStatusSchema.methods.addDeliveryAttempt = function (
   return this.save();
 };
 
-module.exports = mongoose.model("DeliveryStatus", deliveryStatusSchema);
+export default model("DeliveryStatus", deliveryStatusSchema);

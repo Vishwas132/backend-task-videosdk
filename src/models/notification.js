@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
+import { Schema, model } from "mongoose";
 
-const notificationSchema = new mongoose.Schema(
+const notificationSchema = new Schema(
   {
     userId: {
       type: String,
@@ -38,7 +38,7 @@ const notificationSchema = new mongoose.Schema(
     },
     metadata: {
       type: Map,
-      of: mongoose.Schema.Types.Mixed,
+      of: Schema.Types.Mixed,
       default: {},
     },
     retryCount: {
@@ -58,4 +58,4 @@ const notificationSchema = new mongoose.Schema(
 notificationSchema.index({ userId: 1, status: 1 });
 notificationSchema.index({ scheduledFor: 1, status: 1 });
 
-module.exports = mongoose.model("Notification", notificationSchema);
+export default model("Notification", notificationSchema);

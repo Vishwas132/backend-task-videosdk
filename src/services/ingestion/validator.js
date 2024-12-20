@@ -3,7 +3,7 @@
  * @param {Object} data Request body
  * @returns {Object|null} Validation errors or null if valid
  */
-function validateNotification(data) {
+export default function validateNotification(data) {
   const errors = {};
 
   // Required fields
@@ -51,7 +51,3 @@ function validateNotification(data) {
 
   return Object.keys(errors).length > 0 ? errors : null;
 }
-
-module.exports = {
-  validateNotification,
-};

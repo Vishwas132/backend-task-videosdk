@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const config = require("../config");
+import mongoose from "mongoose";
+import { mongodb } from "../config";
 
 class Database {
   constructor() {
@@ -14,7 +14,7 @@ class Database {
     }
 
     try {
-      await this.mongoose.connect(config.mongodb.uri, config.mongodb.options);
+      await this.mongoose.connect(mongodb.uri, mongodb.options);
 
       this.isConnected = true;
       console.log("MongoDB connected successfully");
@@ -67,4 +67,4 @@ class Database {
 }
 
 // Export a singleton instance
-module.exports = new Database();
+export default new Database();

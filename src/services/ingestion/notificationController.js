@@ -1,9 +1,9 @@
-const express = require("express");
-const Notification = require("../../models/notification");
-const { validateNotification } = require("./validator");
-const { publishToKafka } = require("./kafkaProducer");
+import { Router } from "express";
+import Notification, { findById } from "../../models/notification";
+import validateNotification from "./validator";
+import { publishToKafka } from "./kafkaProducer";
 
-const router = express.Router();
+const router = Router();
 
 /**
  * @route POST /notify
@@ -68,7 +68,7 @@ router.post("/notify", async (req, res) => {
  */
 router.get("/notify/:id", async (req, res) => {
   try {
-    const notification = await Notification.findById(req.params.id);
+    const notification = await findById(req.params.id);
 
     if (!notification) {
       return res.status(404).json({
@@ -98,4 +98,4 @@ router.get("/notify/:id", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

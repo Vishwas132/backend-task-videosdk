@@ -1,13 +1,13 @@
-const express = require("express");
-const database = require("./utils/database");
-const notificationRoutes = require("./services/ingestion/notificationController");
-const config = require("./config");
+import express, { json, urlencoded } from "express";
+import { getConnectionStatus, connect, disconnect } from "./utils/database";
+import notificationRoutes from "./services/ingestion/notificationController";
+import { server } from "./config";
 
 const app = express();
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(json());
+app.use(urlencoded({ extended: true }));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -30,7 +30,7 @@ app.get("/health", (req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
-    dbStatus: database.getConnectionStatus(),
+    dbStatus: getConnectionStatus(),
   });
 });
 
@@ -38,14 +38,13 @@ app.get("/health", (req, res) => {
 app.use("/api", notificationRoutes);
 
 // Connect to MongoDB
-database
-  .connect()
+connect()
   .then(() => {
     // Start server
-    const port = config.server.port;
+    const port = server.port;
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
-      console.log(`Environment: ${config.server.nodeEnv}`);
+      console.log(`Environment: ${server.nodeEnv}`);
     });
   })
   .catch((error) => {
@@ -56,8 +55,7 @@ database
 // Handle process termination
 process.on("SIGTERM", () => {
   console.log("SIGTERM received. Shutting down gracefully...");
-  database
-    .disconnect()
+  disconnect()
     .then(() => {
       console.log("Server closed successfully");
       process.exit(0);
@@ -68,4 +66,4 @@ process.on("SIGTERM", () => {
     });
 });
 
-module.exports = app;
+export default app;

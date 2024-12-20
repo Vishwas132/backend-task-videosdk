@@ -1,11 +1,11 @@
-const { Kafka } = require("kafkajs");
-const config = require("../../config");
+import { Kafka } from "kafkajs";
+import { kafka } from "../../config";
 
 class KafkaProducer {
   constructor() {
     this.kafka = new Kafka({
-      clientId: config.kafka.clientId,
-      brokers: config.kafka.brokers,
+      clientId: kafka.clientId,
+      brokers: kafka.brokers,
     });
 
     this.producer = this.kafka.producer();
@@ -89,7 +89,6 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
-module.exports = {
-  publishToKafka: (topic, message) =>
-    kafkaProducer.publishToKafka(topic, message),
-};
+export function publishToKafka(topic, message) {
+  return kafkaProducer.publishToKafka(topic, message);
+}
