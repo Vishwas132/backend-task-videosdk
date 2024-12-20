@@ -1,6 +1,7 @@
 import express, { json, urlencoded } from "express";
 import { getConnectionStatus, connect, disconnect } from "./utils/database";
 import notificationRoutes from "./services/ingestion/notificationController";
+import preferenceRoutes from "./services/preferences/preferenceController";
 import { server } from "./config";
 
 const app = express();
@@ -36,6 +37,7 @@ app.get("/health", (req, res) => {
 
 // Routes
 app.use("/api", notificationRoutes);
+app.use("/api", preferenceRoutes);
 
 // Connect to MongoDB
 connect()
