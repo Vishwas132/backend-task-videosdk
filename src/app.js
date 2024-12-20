@@ -1,7 +1,7 @@
 import express, { json, urlencoded } from "express";
 import database from "./utils/database.js";
-import notificationRoutes from "./services/ingestion/notificationController.js";
-import preferenceRoutes from "./services/preferences/preferenceController.js";
+import notificationRoutes from "./routes/notification.routes.js";
+import preferenceRoutes from "./routes/preference.routes.js";
 import swaggerUi from "swagger-ui-express";
 import { specs } from "./swagger.js";
 
