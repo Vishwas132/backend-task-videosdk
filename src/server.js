@@ -1,16 +1,16 @@
 import app from "./app.js";
 import database from "./utils/database.js";
-import { server } from "./config/index.js";
+import config from "./config/index.js";
 
 // Connect to MongoDB and start server
 database
   .connect()
   .then(() => {
     // Start server
-    const port = server.port;
+    const port = config.server.port;
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
-      console.log(`Environment: ${server.nodeEnv}`);
+      console.log(`Environment: ${config.server.nodeEnv}`);
     });
   })
   .catch((error) => {

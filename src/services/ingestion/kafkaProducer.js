@@ -1,5 +1,5 @@
 import { Kafka } from "kafkajs";
-import config from "../../config";
+import config from "../../config/index.js";
 
 class KafkaProducer {
   constructor() {

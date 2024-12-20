@@ -13,10 +13,6 @@ const config = {
     uri:
       process.env.MONGODB_URI ||
       "mongodb://localhost:27017/notification-system",
-    options: {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    },
   },
 
   kafka: {

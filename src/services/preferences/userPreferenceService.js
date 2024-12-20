@@ -1,4 +1,4 @@
-import UserPreference from "../../models/userPreference";
+import UserPreference from "../../models/userPreference.js";
 
 class UserPreferenceService {
   /**

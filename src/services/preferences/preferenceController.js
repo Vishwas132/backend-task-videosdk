@@ -1,5 +1,5 @@
 import express from "express";
-import userPreferenceService from "./userPreferenceService";
+import userPreferenceService from "./userPreferenceService.js";
 
 const router = express.Router();
 

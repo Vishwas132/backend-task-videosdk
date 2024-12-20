@@ -1,7 +1,7 @@
 import { Router } from "express";
-import Notification from "../../models/notification";
-import validateNotification from "./validator";
-import { publishToKafka } from "./kafkaProducer";
+import Notification from "../../models/notification.js";
+import validateNotification from "./validator.js";
+import { publishToKafka } from "./kafkaProducer.js";
 
 const router = Router();
 
