@@ -3,6 +3,8 @@ import { getConnectionStatus, connect, disconnect } from "./utils/database";
 import notificationRoutes from "./services/ingestion/notificationController";
 import preferenceRoutes from "./services/preferences/preferenceController";
 import { server } from "./config";
+import swaggerUi from "swagger-ui-express";
+import { specs } from "./swagger";
 
 const app = express();
 
@@ -34,6 +36,9 @@ app.get("/health", (req, res) => {
     dbStatus: getConnectionStatus(),
   });
 });
+
+// API Documentation
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
 // Routes
 app.use("/api", notificationRoutes);
