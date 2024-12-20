@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { mongodb } from "../config";
+import config from "../config";
 
 class Database {
   constructor() {
@@ -14,7 +14,7 @@ class Database {
     }
 
     try {
-      await this.mongoose.connect(mongodb.uri, mongodb.options);
+      await this.mongoose.connect(config.mongodb.uri, config.mongodb.options);
 
       this.isConnected = true;
       console.log("MongoDB connected successfully");
