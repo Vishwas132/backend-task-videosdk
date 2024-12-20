@@ -12,6 +12,10 @@ const options = {
         email: "support@example.com",
       },
     },
+    tags: [
+      { name: "Notifications", description: "Notification operations" },
+      { name: "Preferences", description: "User preference operations" },
+    ],
     servers: [
       {
         url: "http://localhost:3000",
