@@ -1,7 +1,7 @@
 import request from "supertest";
 import { describe, it, expect, beforeEach } from "vitest";
-import app from "../src/app";
-import UserPreference from "../src/models/userPreference";
+import app from "../src/app.js";
+import UserPreference from "../src/models/userPreference.js";
 
 beforeEach(async () => {
   // Clear all user preferences before each test

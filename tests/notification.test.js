@@ -1,10 +1,10 @@
 import request from "supertest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import app from "../src/app";
-import Notification from "../src/models/notification";
+import app from "../src/app.js";
+import Notification from "../src/models/notification.js";
 
 // Mock the Kafka producer
-vi.mock("../src/services/ingestion/kafkaProducer", () => ({
+vi.mock("../src/services/ingestion/kafka.producer.service.js", () => ({
   publishToKafka: vi.fn().mockResolvedValue(undefined),
 }));
 

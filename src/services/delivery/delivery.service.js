@@ -1,6 +1,6 @@
-import emailService from "./emailService";
-import Notification from "../../models/notification";
-import DeliveryStatus from "../../models/deliveryStatus";
+import emailService from "./email.service.js";
+import Notification from "../../models/notification.js";
+import DeliveryStatus from "../../models/deliveryStatus.js";
 
 class DeliveryService {
   constructor() {

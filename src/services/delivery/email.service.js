@@ -1,4 +1,4 @@
-import { kafka } from "../../config";
+import config from "../../config/index.js";
 import DeliveryStatus from "../../models/deliveryStatus";
 
 class EmailService {
@@ -59,7 +59,7 @@ class EmailService {
     }
 
     // Try sending the email with retries
-    for (let attempt = 0; attempt < kafka.maxRetries; attempt++) {
+    for (let attempt = 0; attempt < config.kafka.maxRetries; attempt++) {
       try {
         const result = await this.sendEmail(notification);
 
@@ -103,7 +103,7 @@ class EmailService {
         await deliveryStatus.save();
 
         // Wait before retrying (exponential backoff)
-        if (attempt < kafka.maxRetries - 1) {
+        if (attempt < config.kafka.maxRetries - 1) {
           const delay = Math.min(1000 * Math.pow(2, attempt), 30000);
           await new Promise((resolve) => setTimeout(resolve, delay));
         }

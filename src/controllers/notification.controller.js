@@ -1,6 +1,6 @@
 import Notification from "../models/notification.js";
-import validateNotification from "../services/ingestion/validator.js";
-import { publishToKafka } from "../services/ingestion/kafkaProducer.js";
+import validateNotification from "../services/ingestion/notification.validator.service.js";
+import { publishToKafka } from "../services/ingestion/kafka.producer.service.js";
 
 export class NotificationController {
   static async create(req, res) {

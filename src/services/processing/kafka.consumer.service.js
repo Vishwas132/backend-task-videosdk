@@ -1,16 +1,16 @@
 import { Kafka } from "kafkajs";
-import { kafka } from "../../config";
-import { processNotification } from "./notificationProcessor";
+import config from "../../config/index.js";
+import { processNotification } from "./notification.processor.service.js";
 
 class KafkaConsumer {
   constructor() {
     this.kafka = new Kafka({
-      clientId: kafka.clientId,
-      brokers: kafka.brokers,
+      clientId: config.kafka.clientId,
+      brokers: config.kafka.brokers,
     });
 
     this.consumer = this.kafka.consumer({
-      groupId: kafka.groupId,
+      groupId: config.kafka.groupId,
     });
     this.isConnected = false;
   }
@@ -60,7 +60,7 @@ class KafkaConsumer {
     try {
       // Subscribe to notifications topic
       await this.consumer.subscribe({
-        topic: kafka.topics.notifications,
+        topic: config.kafka.topics.notifications,
         fromBeginning: false,
       });
 

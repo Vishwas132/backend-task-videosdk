@@ -1,4 +1,4 @@
-import userPreferenceService from "../services/preferences/userPreferenceService.js";
+import userPreferenceService from "../services/preferences/user.preference.service.js";
 
 export class PreferenceController {
   static async getUserPreferences(req, res) {

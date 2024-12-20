@@ -1,6 +1,6 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
-import database from "../src/utils/database";
+import database from "../src/utils/database.js";
 import { beforeAll, afterAll, afterEach } from "vitest";
 
 let mongoServer;

@@ -1,6 +1,6 @@
-import { PriorityQueue } from "../../utils/priorityQueue";
-import Notification from "../../models/notification";
-import { kafka } from "../../config";
+import { PriorityQueue } from "../../utils/priorityQueue.js";
+import Notification from "../../models/notification.js";
+import config from "../../config/index.js";
 
 // Priority levels and their weights
 const PRIORITY_WEIGHTS = {
@@ -74,7 +74,7 @@ async function processImmediateNotifications() {
       );
 
       // Handle retry logic
-      if (notification.retryCount < kafka.maxRetries) {
+      if (notification.retryCount < config.kafka.maxRetries) {
         await Notification.findByIdAndUpdate(notification.notificationId, {
           status: "pending",
           $inc: { retryCount: 1 },
@@ -126,4 +126,7 @@ export async function processScheduledNotifications() {
 }
 
 // Start the scheduled notification processor
-setInterval(processScheduledNotifications, kafka.schedulingInterval || 5000);
+setInterval(
+  processScheduledNotifications,
+  config.kafka.schedulingInterval || 5000
+);

@@ -1,6 +1,6 @@
-import kafkaConsumer from "./kafkaConsumer";
-import { processScheduledNotifications } from "./notificationProcessor";
-import database from "../../utils/database";
+import kafkaConsumer from "./kafka.consumer.service.js";
+import { processScheduledNotifications } from "./notification.processor.service.js";
+import database from "../../utils/database.js";
 
 class ProcessingService {
   constructor() {
