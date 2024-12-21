@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Client } from "@elastic/elasticsearch";
-import { NotificationSearchService } from "../src/services/processing/notification.processor.service.js";
+import { NotificationSearchService } from "../src/services/processing/notification.search.service.js";
 import Notification from "../src/models/notification.js";
 
 // Mock Elasticsearch client
