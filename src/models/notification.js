@@ -27,9 +27,9 @@ const notificationSchema = new Schema(
       index: true,
     },
     channel: {
-      type: String,
+      type: [String],
       enum: ["email", "sms", "push"],
-      default: "email",
+      default: ["email"],
     },
     scheduledFor: {
       type: Date,

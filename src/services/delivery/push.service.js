@@ -1,30 +1,30 @@
 import config from "../../config/index.js";
 import DeliveryStatus from "../../models/deliveryStatus.js";
 
-class EmailService {
+class PushNotificationService {
   constructor() {
-    // In a real implementation, this would be an actual email client
-    this.mockDeliverySuccess = 0.9; // 90% success rate for simulation
+    // In a real implementation, this would be an actual push notification service (e.g., Firebase Cloud Messaging)
+    this.mockDeliverySuccess = 0.93; // 93% success rate for simulation
   }
 
   /**
-   * Send an email notification
+   * Send a push notification
    * @param {Object} notification The notification to send
    * @returns {Promise<Object>} Delivery result
    */
-  async sendEmail(notification) {
+  async sendPushNotification(notification) {
     // Simulate network latency
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 300));
 
     // Simulate random success/failure
     const isSuccess = Math.random() < this.mockDeliverySuccess;
 
     if (!isSuccess) {
-      throw new Error("Mock email delivery failed");
+      throw new Error("Mock push notification delivery failed");
     }
 
-    // Generate mock email metadata
-    const messageId = `mock_${Date.now()}_${Math.random()
+    // Generate mock push notification metadata
+    const messageId = `push_${Date.now()}_${Math.random()
       .toString(36)
       .substr(2, 9)}`;
 
@@ -52,21 +52,21 @@ class EmailService {
         notificationId: notification._id,
         userId: notification.userId,
         status: "pending",
-        channel: "email",
+        channel: "push",
         lastAttemptAt: new Date(),
         deliveryAttempts: [],
       });
     }
 
-    // Try sending the email with retries
+    // Try sending the push notification with retries
     for (let attempt = 0; attempt < config.kafka.maxRetries; attempt++) {
       try {
-        const result = await this.sendEmail(notification);
+        const result = await this.sendPushNotification(notification);
 
         // Update delivery status on success
         deliveryStatus.status = "delivered";
         deliveryStatus.deliveredAt = new Date();
-        deliveryStatus.emailMetadata = {
+        deliveryStatus.pushMetadata = {
           messageId: result.messageId,
         };
 
@@ -83,7 +83,10 @@ class EmailService {
         return;
       } catch (error) {
         lastError = error;
-        console.error(`Email delivery attempt ${attempt + 1} failed:`, error);
+        console.error(
+          `Push notification delivery attempt ${attempt + 1} failed:`,
+          error
+        );
 
         // Add failed attempt
         deliveryStatus.deliveryAttempts.push({
@@ -116,4 +119,4 @@ class EmailService {
 }
 
 // Export singleton instance
-export default new EmailService();
+export default new PushNotificationService();

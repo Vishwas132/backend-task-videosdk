@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { DeliveryService } from "../src/services/delivery/delivery.service.js";
-import { EmailService } from "../src/services/delivery/email.service.js";
+import deliveryService from "../src/services/delivery/delivery.service.js";
+import emailService from "../src/services/delivery/email.service.js";
 import Notification from "../src/models/notification.js";
 import DeliveryStatus from "../src/models/deliveryStatus.js";
 
@@ -10,10 +10,7 @@ vi.mock("../src/services/delivery/sms.service.js");
 vi.mock("../src/services/delivery/push.service.js");
 
 describe("Notification Delivery", () => {
-  let deliveryService;
-
   beforeEach(() => {
-    deliveryService = new DeliveryService();
     vi.clearAllMocks();
   });
 
@@ -27,15 +24,9 @@ describe("Notification Delivery", () => {
         status: "pending",
       });
 
-      await deliveryService.deliver(notification);
+      await deliveryService.deliverNotification(notification);
 
-      expect(EmailService.send).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: expect.any(String),
-          subject: notification.title,
-          content: notification.content,
-        })
-      );
+      expect(emailService.sendWithRetry).toHaveBeenCalledWith(notification);
     });
 
     it("should handle multiple delivery channels", async () => {
@@ -43,18 +34,18 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Multi-channel Test",
         content: "Test content",
-        channels: ["email", "sms"],
+        channel: ["email", "sms"],
         status: "pending",
       });
 
-      await deliveryService.deliver(notification);
+      await deliveryService.deliverNotification(notification);
 
       const deliveryStatus = await DeliveryStatus.findOne({
         notificationId: notification._id,
       });
-      expect(deliveryStatus.channels).toHaveLength(2);
-      expect(deliveryStatus.channels).toContain("email");
-      expect(deliveryStatus.channels).toContain("sms");
+      expect(deliveryStatus.channel).toHaveLength(2);
+      expect(deliveryStatus.channel).toContain("email");
+      expect(deliveryStatus.channel).toContain("sms");
     });
   });
 
@@ -69,13 +60,15 @@ describe("Notification Delivery", () => {
       });
 
       // Mock first attempt failure
-      EmailService.send.mockRejectedValueOnce(new Error("Delivery failed"));
+      emailService.sendWithRetry.mockRejectedValueOnce(
+        new Error("Delivery failed")
+      );
       // Mock second attempt success
-      EmailService.send.mockResolvedValueOnce({ success: true });
+      emailService.sendWithRetry.mockResolvedValueOnce({ success: true });
 
-      await deliveryService.deliver(notification);
+      await deliveryService.deliverNotification(notification);
 
-      expect(EmailService.send).toHaveBeenCalledTimes(2);
+      expect(emailService.sendWithRetry).toHaveBeenCalledTimes(2);
       const deliveryStatus = await DeliveryStatus.findOne({
         notificationId: notification._id,
       });
@@ -93,16 +86,18 @@ describe("Notification Delivery", () => {
       });
 
       // Mock all attempts failing
-      EmailService.send.mockRejectedValue(new Error("Delivery failed"));
+      emailService.sendWithRetry.mockRejectedValue(
+        new Error("Delivery failed")
+      );
 
-      await deliveryService.deliver(notification);
+      await deliveryService.deliverNotification(notification);
 
       const deliveryStatus = await DeliveryStatus.findOne({
         notificationId: notification._id,
       });
       expect(deliveryStatus.status).toBe("failed");
       expect(deliveryStatus.retryCount).toBeGreaterThan(0);
-      expect(deliveryStatus.lastError).toBeDefined();
+      expect(deliveryStatus.failureReason.message).toBeDefined();
     });
   });
 
@@ -116,9 +111,9 @@ describe("Notification Delivery", () => {
         status: "pending",
       });
 
-      EmailService.send.mockResolvedValueOnce({ success: true });
+      emailService.sendWithRetry.mockResolvedValueOnce({ success: true });
 
-      await deliveryService.deliver(notification);
+      await deliveryService.deliverNotification(notification);
 
       const deliveryStatus = await DeliveryStatus.findOne({
         notificationId: notification._id,
@@ -138,17 +133,17 @@ describe("Notification Delivery", () => {
       });
 
       const error = new Error("Temporary failure");
-      EmailService.send.mockRejectedValueOnce(error);
-      EmailService.send.mockResolvedValueOnce({ success: true });
+      emailService.sendWithRetry.mockRejectedValueOnce(error);
+      emailService.sendWithRetry.mockResolvedValueOnce({ success: true });
 
-      await deliveryService.deliver(notification);
+      await deliveryService.deliverNotification(notification);
 
       const deliveryStatus = await DeliveryStatus.findOne({
         notificationId: notification._id,
       });
-      expect(deliveryStatus.attempts).toHaveLength(2);
-      expect(deliveryStatus.attempts[0].error).toBeDefined();
-      expect(deliveryStatus.attempts[1].success).toBe(true);
+      expect(deliveryStatus.deliveryAttempts).toHaveLength(2);
+      expect(deliveryStatus.deliveryAttempts[0].errorMessage).toBeDefined();
+      expect(deliveryStatus.deliveryAttempts[1].status).toBe("success");
     });
   });
 });

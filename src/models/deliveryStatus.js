@@ -15,14 +15,27 @@ const deliveryStatusSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["sent", "delivered", "failed", "bounced", "rejected"],
+      enum: [
+        "sent",
+        "delivered",
+        "failed",
+        "bounced",
+        "rejected",
+        "processing",
+      ],
       required: true,
       index: true,
     },
     channel: {
-      type: String,
+      type: [String],
       enum: ["email", "sms", "push"],
       required: true,
+      validate: {
+        validator: function (v) {
+          return Array.isArray(v) && v.length > 0;
+        },
+        message: "At least one channel must be specified",
+      },
     },
     deliveryAttempts: [
       {
@@ -57,6 +70,11 @@ const deliveryStatusSchema = new Schema(
     failureReason: {
       code: String,
       message: String,
+    },
+    retryCount: {
+      type: Number,
+      default: 0,
+      required: true,
     },
     metadata: {
       type: Map,
@@ -117,6 +135,8 @@ deliveryStatusSchema.methods.addDeliveryAttempt = function (
   if (status === "success") {
     this.status = "delivered";
     this.deliveredAt = new Date();
+  } else {
+    this.retryCount += 1;
   }
 
   return this.save();

@@ -1,4 +1,6 @@
 import emailService from "./email.service.js";
+import smsService from "./sms.service.js";
+import pushService from "./push.service.js";
 import Notification from "../../models/notification.js";
 import DeliveryStatus from "../../models/deliveryStatus.js";
 
@@ -7,49 +9,128 @@ class DeliveryService {
     // Map of delivery handlers for different channels
     this.deliveryHandlers = {
       email: this.#handleEmailDelivery,
-      // Add other channel handlers here as they're implemented
-      // sms: this.handleSmsDelivery.bind(this),
-      // push: this.handlePushDelivery.bind(this),
+      sms: this.#handleSmsDelivery,
+      push: this.#handlePushDelivery,
     };
   }
 
   /**
-   * Deliver a notification through the appropriate channel
+   * Deliver a notification through the specified channels
    */
   async deliverNotification(notification) {
-    const handler = this.deliveryHandlers[notification.channel];
+    const channels = Array.isArray(notification.channel)
+      ? notification.channel
+      : [notification.channel];
 
-    if (!handler) {
-      throw new Error(`Unsupported delivery channel: ${notification.channel}`);
-    }
+    // Create initial delivery status
+    let deliveryStatus = await DeliveryStatus.create({
+      notificationId: notification._id,
+      userId: notification.userId,
+      status: "processing",
+      channel: channels,
+      deliveryAttempts: [],
+      lastAttemptAt: new Date(),
+      retryCount: 0,
+    });
 
-    try {
-      // Update notification status to processing
-      await Notification.findByIdAndUpdate(notification._id, {
-        status: "processing",
-      });
+    const MAX_RETRIES = 2;
+    let retryCount = 0;
 
-      // Attempt delivery
-      await handler(notification);
+    while (retryCount < MAX_RETRIES) {
+      try {
+        // Handle channels sequentially to avoid parallel saves
+        const results = [];
+        for (const channel of channels) {
+          const handler = this.deliveryHandlers[channel];
+          if (!handler) {
+            throw new Error(`Unsupported delivery channel: ${channel}`);
+          }
 
-      // Update notification status to delivered
-      await Notification.findByIdAndUpdate(notification._id, {
-        status: "delivered",
-      });
-    } catch (error) {
-      console.error(
-        `Delivery failed for notification ${notification._id}:`,
-        error
-      );
+          try {
+            await handler(notification);
+            await deliveryStatus.addDeliveryAttempt("success", null, null, {
+              channel,
+            });
+            results.push({ channel, success: true });
+          } catch (error) {
+            console.error(
+              `Delivery failed for notification ${notification._id} on channel ${channel}:`,
+              error
+            );
+            await deliveryStatus.addDeliveryAttempt(
+              "failure",
+              null,
+              error.message,
+              { channel }
+            );
+            results.push({ channel, success: false, error });
+          }
+        }
+        const successfulDeliveries = results.filter((r) => r.success);
+        const failedDeliveries = results.filter((r) => !r.success);
 
-      // Update notification status to failed
-      await Notification.findByIdAndUpdate(notification._id, {
-        status: "failed",
-        $inc: { retryCount: 1 },
-        lastRetryAt: new Date(),
-      });
+        // All channels succeeded
+        if (successfulDeliveries.length === channels.length) {
+          await Notification.findByIdAndUpdate(notification._id, {
+            status: "delivered",
+            deliveredAt: new Date(),
+          });
+          return;
+        }
 
-      throw error;
+        // Some channels failed
+        retryCount++;
+
+        if (retryCount === MAX_RETRIES) {
+          const errors = failedDeliveries
+            .map((d) => `${d.channel}: ${d.error.message}`)
+            .join("; ");
+
+          await deliveryStatus.updateOne({
+            status: "failed",
+            failureReason: { message: errors },
+          });
+
+          await Notification.findByIdAndUpdate(notification._id, {
+            status: "failed",
+            error: errors,
+          });
+
+          throw new Error(
+            `Delivery failed after ${MAX_RETRIES} attempts: ${errors}`
+          );
+        }
+
+        // Fixed delay for tests, exponential backoff for production
+        const delay =
+          process.env.NODE_ENV === "test"
+            ? 100
+            : Math.pow(2, retryCount) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } catch (error) {
+        retryCount++;
+
+        if (retryCount === MAX_RETRIES) {
+          await deliveryStatus.updateOne({
+            status: "failed",
+            failureReason: { message: error.message },
+          });
+
+          await Notification.findByIdAndUpdate(notification._id, {
+            status: "failed",
+            error: error.message,
+          });
+
+          throw error;
+        }
+
+        // Fixed delay for tests, exponential backoff for production
+        const delay =
+          process.env.NODE_ENV === "test"
+            ? 100
+            : Math.pow(2, retryCount) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
   }
 
@@ -58,56 +139,45 @@ class DeliveryService {
    * @private
    */
   #handleEmailDelivery = async (notification) => {
-    try {
-      await emailService.sendWithRetry(notification);
-    } catch (error) {
-      // Create or update delivery status for failed delivery
-      await DeliveryStatus.findOneAndUpdate(
-        { notificationId: notification._id },
-        {
-          $set: {
-            status: "failed",
-            lastAttemptAt: new Date(),
-            failureReason: {
-              code: "EMAIL_DELIVERY_FAILED",
-              message: error.message,
-            },
-          },
-        },
-        { upsert: true }
-      );
+    return emailService.sendWithRetry(notification);
+  };
 
-      throw error;
-    }
+  /**
+   * Handle SMS delivery for a notification
+   * @private
+   */
+  #handleSmsDelivery = async (notification) => {
+    return smsService.sendWithRetry(notification);
+  };
+
+  /**
+   * Handle push notification delivery
+   * @private
+   */
+  #handlePushDelivery = async (notification) => {
+    return pushService.sendWithRetry(notification);
   };
 
   /**
    * Get delivery status for a notification
    */
   async getDeliveryStatus(notificationId) {
-    const [notification, deliveryStatus] = await Promise.all([
-      Notification.findById(notificationId),
-      DeliveryStatus.findOne({ notificationId }),
-    ]);
-
-    if (!notification) {
-      throw new Error("Notification not found");
+    const deliveryStatus = await DeliveryStatus.findOne({
+      notificationId,
+    }).exec();
+    if (!deliveryStatus) {
+      throw new Error("Delivery status not found");
     }
 
     return {
       notificationId,
-      status: notification.status,
-      channel: notification.channel,
-      retryCount: notification.retryCount,
-      lastRetryAt: notification.lastRetryAt,
-      deliveryDetails: deliveryStatus
-        ? {
-            attempts: deliveryStatus.deliveryAttempts.length,
-            lastAttempt: deliveryStatus.lastAttemptAt,
-            deliveredAt: deliveryStatus.deliveredAt,
-            failureReason: deliveryStatus.failureReason,
-          }
-        : null,
+      status: deliveryStatus.status,
+      channel: deliveryStatus.channel,
+      retryCount: deliveryStatus.retryCount,
+      lastAttemptAt: deliveryStatus.lastAttemptAt,
+      attempts: deliveryStatus.deliveryAttempts,
+      deliveredAt: deliveryStatus.deliveredAt,
+      failureReason: deliveryStatus.failureReason,
     };
   }
 }
