@@ -22,7 +22,7 @@ const notificationSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "processing", "delivered", "failed"],
+      enum: ["pending", "processing", "delivered", "failed", "throttled"],
       default: "pending",
       index: true,
     },

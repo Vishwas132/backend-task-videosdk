@@ -1,4 +1,5 @@
 import UserPreference from "../../models/userPreference.js";
+import DeliveryStatus from "../../models/deliveryStatus.js";
 
 class UserPreferenceService {
   /**
@@ -198,9 +199,19 @@ class UserPreferenceService {
    * @private
    */
   #countRecentNotifications = async (userId, since) => {
-    // This would typically query your notifications collection
-    // For now, we'll return 0 as it requires integration with the notification service
-    return 0;
+    try {
+      // Count successful deliveries within the time window
+      const count = await DeliveryStatus.countDocuments({
+        userId,
+        status: "delivered",
+        deliveredAt: { $gte: new Date(since) },
+      });
+
+      return count;
+    } catch (error) {
+      console.error("Error counting recent notifications:", error);
+      throw error;
+    }
   };
 }
 

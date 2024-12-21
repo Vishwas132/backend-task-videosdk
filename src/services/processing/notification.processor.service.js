@@ -1,6 +1,7 @@
 import { PriorityQueue } from "../../utils/priorityQueue.js";
 import Notification from "../../models/notification.js";
 import config from "../../config/index.js";
+import userPreferenceService from "../preferences/user.preference.service.js";
 
 // Priority levels and their weights
 const PRIORITY_WEIGHTS = {
@@ -19,6 +20,24 @@ const scheduledQueue = new PriorityQueue();
  */
 export async function processNotification(notification, priority) {
   try {
+    // Check for throttling unless it's an urgent notification
+    if (priority !== "urgent") {
+      const shouldThrottle =
+        await userPreferenceService.shouldThrottleNotification(
+          notification.userId
+        );
+      if (shouldThrottle) {
+        console.log(
+          `Throttling notification ${notification._id} for user ${notification.userId}`
+        );
+        await Notification.findByIdAndUpdate(notification._id, {
+          status: "throttled",
+          error: "Rate limit exceeded",
+        });
+        return;
+      }
+    }
+
     const weight = PRIORITY_WEIGHTS[priority] || PRIORITY_WEIGHTS.medium;
     const scheduledTime = notification.scheduledFor
       ? new Date(notification.scheduledFor)
