@@ -19,32 +19,55 @@ const scheduledQueue = new PriorityQueue();
  */
 export async function processNotification(notification, priority) {
   try {
-    // Update notification status to processing
-    await Notification.findByIdAndUpdate(notification.notificationId, {
-      status: "processing",
-    });
-
     const weight = PRIORITY_WEIGHTS[priority] || PRIORITY_WEIGHTS.medium;
-    const scheduledTime = new Date(notification.scheduledFor);
+    const scheduledTime = notification.scheduledFor
+      ? new Date(notification.scheduledFor)
+      : new Date();
     const now = new Date();
 
-    // Add to appropriate queue based on scheduling
-    if (scheduledTime <= now) {
+    // Update notification status and add to appropriate queue based on scheduling and priority
+    if (priority === "urgent" || priority === "high") {
+      // High priority notifications always go to immediate queue
+      await Notification.findByIdAndUpdate(notification._id, {
+        status: "processing",
+        processedAt: new Date(),
+        priority: priority,
+      });
       immediateQueue.enqueue(notification, weight);
+      console.log(
+        `Processing high priority notification ${notification._id} immediately`
+      );
+      await processImmediateNotifications();
+    } else if (scheduledTime <= now) {
+      // Non-high priority but due now
+      await Notification.findByIdAndUpdate(notification._id, {
+        status: "processing",
+        processedAt: new Date(),
+        priority: priority,
+      });
+      immediateQueue.enqueue(notification, weight);
+      console.log(`Processing due notification ${notification._id}`);
       await processImmediateNotifications();
     } else {
+      // Future scheduled notifications
+      await Notification.findByIdAndUpdate(notification._id, {
+        status: "processing",
+        scheduledFor: scheduledTime,
+        priority: priority,
+      });
       scheduledQueue.enqueue(notification, weight);
       console.log(
-        `Scheduled notification ${notification.notificationId} for ${scheduledTime}`
+        `Scheduled notification ${notification._id} for ${scheduledTime}`
       );
     }
   } catch (error) {
     console.error("Error processing notification:", error);
     // Update notification status to failed
-    await Notification.findByIdAndUpdate(notification.notificationId, {
+    await Notification.findByIdAndUpdate(notification._id, {
       status: "failed",
       $inc: { retryCount: 1 },
       lastRetryAt: new Date(),
+      error: error.message,
     });
     throw error;
   }
@@ -54,42 +77,90 @@ export async function processNotification(notification, priority) {
  * Process notifications in the immediate queue
  */
 async function processImmediateNotifications() {
+  const processedNotifications = new Set();
+
   while (!immediateQueue.isEmpty()) {
     const notification = immediateQueue.dequeue();
 
-    try {
-      // Here we would integrate with the delivery service
-      // For now, we'll just update the status
-      await Notification.findByIdAndUpdate(notification.notificationId, {
-        status: "delivered",
-      });
+    // Skip if already processed (avoid duplicates)
+    if (processedNotifications.has(notification._id.toString())) {
+      continue;
+    }
 
-      console.log(
-        `Processed immediate notification ${notification.notificationId}`
+    try {
+      // First update status to processing
+      const updatedNotification = await Notification.findByIdAndUpdate(
+        notification._id,
+        {
+          status: "processing",
+          processedAt: new Date(),
+        },
+        { new: true }
       );
+
+      if (!updatedNotification) {
+        console.error(`Notification ${notification._id} not found`);
+        continue;
+      }
+
+      // Track that we've processed this notification
+      processedNotifications.add(notification._id.toString());
+
+      // Process based on priority
+      if (
+        updatedNotification.priority === "urgent" ||
+        updatedNotification.priority === "high"
+      ) {
+        await Notification.findByIdAndUpdate(notification._id, {
+          status: "processing",
+          processedAt: new Date(),
+        });
+        console.log(
+          `Processing high priority notification ${notification._id}`
+        );
+      } else {
+        await Notification.findByIdAndUpdate(notification._id, {
+          status: "processing",
+          processedAt: new Date(),
+        });
+        console.log(
+          `Processing normal priority notification ${notification._id}`
+        );
+      }
+
+      console.log(`Processing notification ${notification._id}`);
     } catch (error) {
       console.error(
-        `Error processing immediate notification ${notification.notificationId}:`,
+        `Error processing notification ${notification._id}:`,
         error
       );
 
       // Handle retry logic
       if (notification.retryCount < config.kafka.maxRetries) {
-        await Notification.findByIdAndUpdate(notification.notificationId, {
-          status: "pending",
-          $inc: { retryCount: 1 },
-          lastRetryAt: new Date(),
-        });
-
-        // Re-queue with reduced priority
-        const newWeight = Math.max(
-          PRIORITY_WEIGHTS.low,
-          PRIORITY_WEIGHTS[notification.priority] - 1
+        const updatedNotification = await Notification.findByIdAndUpdate(
+          notification._id,
+          {
+            status: "retry",
+            $inc: { retryCount: 1 },
+            lastRetryAt: new Date(),
+            error: error.message,
+          },
+          { new: true }
         );
-        immediateQueue.enqueue(notification, newWeight);
+
+        // Re-queue with reduced priority after a delay
+        setTimeout(() => {
+          const newWeight = Math.max(
+            PRIORITY_WEIGHTS.low,
+            PRIORITY_WEIGHTS[notification.priority] - 1
+          );
+          immediateQueue.enqueue(updatedNotification, newWeight);
+        }, config.kafka.retryDelay || 5000);
       } else {
-        await Notification.findByIdAndUpdate(notification.notificationId, {
+        await Notification.findByIdAndUpdate(notification._id, {
           status: "failed",
+          error: error.message,
+          failedAt: new Date(),
         });
       }
     }
@@ -109,6 +180,10 @@ export async function processScheduledNotifications() {
 
     if (scheduledTime <= now) {
       scheduledQueue.dequeue();
+      await Notification.findByIdAndUpdate(notification._id, {
+        status: "processing",
+        processedAt: new Date(),
+      });
       immediateQueue.enqueue(
         notification,
         PRIORITY_WEIGHTS[notification.priority] || PRIORITY_WEIGHTS.medium

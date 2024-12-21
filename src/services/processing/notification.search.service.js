@@ -1,5 +1,3 @@
-import { Client } from "@elastic/elasticsearch";
-
 export class NotificationSearchService {
   constructor(client) {
     this.client = client;

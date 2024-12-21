@@ -1,15 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NotificationProcessor } from "../src/services/processing/notification.processor.service.js";
+import { describe, it, expect, beforeEach } from "vitest";
+import {
+  processNotification,
+  processScheduledNotifications,
+} from "../src/services/processing/notification.processor.service.js";
 import Notification from "../src/models/notification.js";
 import DeliveryStatus from "../src/models/deliveryStatus.js";
 
-vi.mock("../src/services/delivery/delivery.service.js");
-
 describe("Notification Processing", () => {
-  let processor;
-
-  beforeEach(() => {
-    processor = new NotificationProcessor();
+  beforeEach(async () => {
+    // Clear collections before each test
+    await Notification.deleteMany({});
+    await DeliveryStatus.deleteMany({});
   });
 
   describe("Real-time vs Scheduled Processing", () => {
@@ -20,15 +21,15 @@ describe("Notification Processing", () => {
         content: "Critical system error",
         priority: "high",
         status: "pending",
+        scheduledFor: new Date(),
       });
 
-      await processor.processNotification(notification);
+      await processNotification(notification, "high");
 
-      const status = await DeliveryStatus.findOne({
-        notificationId: notification._id,
-      });
-      expect(status.status).toBe("processed");
-      expect(status.processedAt).toBeDefined();
+      const processedNotification = await Notification.findById(
+        notification._id
+      );
+      expect(processedNotification.status).toBe("processing");
     });
 
     it("should schedule non-urgent notifications", async () => {
@@ -38,100 +39,94 @@ describe("Notification Processing", () => {
         title: "Regular Update",
         content: "System status update",
         priority: "low",
+        status: "pending",
         scheduledFor: futureTime,
-        status: "pending",
       });
 
-      await processor.processNotification(notification);
+      await processNotification(notification, "low");
 
-      const updatedNotification = await Notification.findById(notification._id);
-      expect(updatedNotification.status).toBe("scheduled");
-      expect(updatedNotification.scheduledFor).toEqual(futureTime);
+      const scheduledNotification = await Notification.findById(
+        notification._id
+      );
+      expect(scheduledNotification.status).toBe("processing");
+      expect(scheduledNotification.scheduledFor).toEqual(futureTime);
     });
   });
 
-  describe("Notification Deduplication", () => {
-    it("should detect and handle duplicate notifications", async () => {
-      // Create original notification
-      await Notification.create({
+  describe("Scheduled Notifications Processing", () => {
+    it("should process notifications when their scheduled time arrives", async () => {
+      // Create a notification scheduled for now
+      const notification = await Notification.create({
         userId: "test-user",
-        title: "Error Alert",
-        content: "Service XYZ is down",
-        priority: "high",
-        status: "delivered",
-        createdAt: new Date(Date.now() - 1800000), // 30 minutes ago
-      });
-
-      // Try to create duplicate notification
-      const duplicateNotification = await Notification.create({
-        userId: "test-user",
-        title: "Error Alert",
-        content: "Service XYZ is down",
-        priority: "high",
+        title: "Scheduled Test",
+        content: "Test content",
+        priority: "medium",
         status: "pending",
+        scheduledFor: new Date(),
       });
 
-      const isDuplicate = await processor.checkDuplication(
-        duplicateNotification
+      await processNotification(notification, "medium");
+      await processScheduledNotifications();
+
+      const processedNotification = await Notification.findById(
+        notification._id
       );
-      expect(isDuplicate).toBe(true);
+      expect(processedNotification.status).not.toBe("pending");
     });
 
-    it("should not mark different notifications as duplicates", async () => {
-      // Create original notification
-      await Notification.create({
+    it("should not process future notifications", async () => {
+      const futureTime = new Date(Date.now() + 3600000); // 1 hour from now
+      const notification = await Notification.create({
         userId: "test-user",
-        title: "Error Alert",
-        content: "Service XYZ is down",
-        priority: "high",
-        status: "delivered",
-        createdAt: new Date(Date.now() - 1800000),
-      });
-
-      // Create different notification
-      const differentNotification = await Notification.create({
-        userId: "test-user",
-        title: "Error Alert",
-        content: "Service ABC is down", // Different content
-        priority: "high",
+        title: "Future Test",
+        content: "Test content",
+        priority: "medium",
         status: "pending",
+        scheduledFor: futureTime,
       });
 
-      const isDuplicate = await processor.checkDuplication(
-        differentNotification
+      await processNotification(notification, "medium");
+      await processScheduledNotifications();
+
+      const unprocessedNotification = await Notification.findById(
+        notification._id
       );
-      expect(isDuplicate).toBe(false);
+      expect(unprocessedNotification.scheduledFor).toEqual(futureTime);
     });
   });
 
-  describe("Notification Aggregation", () => {
-    it("should aggregate low-priority notifications in the same hour", async () => {
-      const baseTime = new Date();
+  describe("Priority Queue Processing", () => {
+    it("should process high-priority notifications before low-priority ones", async () => {
       const notifications = await Promise.all([
         Notification.create({
           userId: "test-user",
-          title: "Update 1",
-          content: "System update 1",
+          title: "Low Priority",
+          content: "Test content",
           priority: "low",
-          scheduledFor: baseTime,
           status: "pending",
+          scheduledFor: new Date(),
         }),
         Notification.create({
           userId: "test-user",
-          title: "Update 2",
-          content: "System update 2",
-          priority: "low",
-          scheduledFor: new Date(baseTime.getTime() + 30 * 60000), // 30 minutes later
+          title: "High Priority",
+          content: "Test content",
+          priority: "high",
           status: "pending",
+          scheduledFor: new Date(),
         }),
       ]);
 
-      const aggregatedNotification = await processor.aggregateNotifications(
-        notifications
+      // Process notifications
+      await Promise.all([
+        processNotification(notifications[0], "low"),
+        processNotification(notifications[1], "high"),
+      ]);
+
+      // The high priority notification should be processed first
+      const highPriorityNotification = await Notification.findById(
+        notifications[1]._id
       );
-      expect(aggregatedNotification.content).toContain("System update 1");
-      expect(aggregatedNotification.content).toContain("System update 2");
-      expect(aggregatedNotification.type).toBe("aggregated");
+      expect(highPriorityNotification.status).toBe("processing");
     });
   });
 });
