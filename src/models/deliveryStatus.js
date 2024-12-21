@@ -81,6 +81,18 @@ const deliveryStatusSchema = new Schema(
       of: Schema.Types.Mixed,
       default: {},
     },
+    processingTime: {
+      type: Number,
+      default: 0,
+    },
+    deliveryTime: {
+      type: Number,
+      default: 0,
+    },
+    responseTime: {
+      type: Number,
+      default: 0,
+    },
     // For email-specific tracking
     emailMetadata: {
       messageId: String,
@@ -116,30 +128,84 @@ deliveryStatusSchema.virtual("totalAttempts").get(function () {
   return this.deliveryAttempts.length;
 });
 
-// Method to add a new delivery attempt
+// Static method to add a delivery attempt using atomic operations
+deliveryStatusSchema.statics.addDeliveryAttempt = async function (
+  deliveryStatusId,
+  {
+    status,
+    errorCode,
+    errorMessage,
+    metadata = {},
+    processingTime = 0,
+    deliveryTime = 0,
+  }
+) {
+  const now = new Date();
+  const updateData = {
+    $push: {
+      deliveryAttempts: {
+        timestamp: now,
+        status,
+        errorCode,
+        errorMessage,
+        metadata,
+      },
+    },
+    $set: {
+      lastAttemptAt: now,
+    },
+  };
+
+  if (status === "success") {
+    updateData.$set = {
+      ...updateData.$set,
+      status: "delivered",
+      deliveredAt: now,
+      processingTime,
+      deliveryTime,
+      responseTime: processingTime + deliveryTime,
+    };
+  } else {
+    updateData.$inc = { retryCount: 1 };
+  }
+
+  try {
+    const updatedStatus = await this.findByIdAndUpdate(
+      deliveryStatusId,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!updatedStatus) {
+      throw new Error("Delivery status not found");
+    }
+
+    return updatedStatus;
+  } catch (error) {
+    throw new Error(`Failed to update delivery status: ${error.message}`);
+  }
+};
+
+// Instance method wrapper for backward compatibility
 deliveryStatusSchema.methods.addDeliveryAttempt = function (
   status,
   errorCode,
   errorMessage,
-  metadata
+  metadata,
+  processingTime,
+  deliveryTime
 ) {
-  this.deliveryAttempts.push({
-    timestamp: new Date(),
+  return this.constructor.addDeliveryAttempt(this._id, {
     status,
     errorCode,
     errorMessage,
     metadata,
+    processingTime,
+    deliveryTime,
   });
-  this.lastAttemptAt = new Date();
-
-  if (status === "success") {
-    this.status = "delivered";
-    this.deliveredAt = new Date();
-  } else {
-    this.retryCount += 1;
-  }
-
-  return this.save();
 };
 
 export default model("DeliveryStatus", deliveryStatusSchema);
