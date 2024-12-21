@@ -9,5 +9,6 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       exclude: ["node_modules/", "tests/", "coverage/"],
     },
+    fileParallelism: false,
   },
 });
