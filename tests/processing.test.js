@@ -22,6 +22,7 @@ describe("Notification Processing", () => {
         priority: "high",
         status: "pending",
         scheduledFor: new Date(),
+        channel: ["email"],
       });
 
       await processNotification(notification, "high");
@@ -41,6 +42,7 @@ describe("Notification Processing", () => {
         priority: "low",
         status: "pending",
         scheduledFor: futureTime,
+        channel: ["email"],
       });
 
       await processNotification(notification, "low");
@@ -63,6 +65,7 @@ describe("Notification Processing", () => {
         priority: "medium",
         status: "pending",
         scheduledFor: new Date(),
+        channel: ["email"],
       });
 
       await processNotification(notification, "medium");
@@ -83,6 +86,7 @@ describe("Notification Processing", () => {
         priority: "medium",
         status: "pending",
         scheduledFor: futureTime,
+        channel: ["email"],
       });
 
       await processNotification(notification, "medium");
@@ -105,6 +109,7 @@ describe("Notification Processing", () => {
           priority: "low",
           status: "pending",
           scheduledFor: new Date(),
+          channel: ["email"],
         }),
         Notification.create({
           userId: "test-user",
@@ -113,6 +118,7 @@ describe("Notification Processing", () => {
           priority: "high",
           status: "pending",
           scheduledFor: new Date(),
+          channel: ["email"],
         }),
       ]);
 

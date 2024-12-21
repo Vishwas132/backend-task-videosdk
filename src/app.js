@@ -17,16 +17,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({
-    status: "error",
-    message: "Internal server error",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
-  });
-});
-
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
@@ -42,5 +32,14 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 // Routes
 app.use("/api", notificationRoutes);
 app.use("/api", preferenceRoutes);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({
+    status: "error",
+    message: "Internal server error",
+    error: process.env.NODE_ENV === "development" ? err.message : undefined,
+  });
+});
 
 export default app;

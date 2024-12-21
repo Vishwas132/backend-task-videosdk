@@ -52,7 +52,7 @@ class EmailService {
         notificationId: notification._id,
         userId: notification.userId,
         status: "pending",
-        channel: "email",
+        channel: ["email"],
         lastAttemptAt: new Date(),
         deliveryAttempts: [],
       });

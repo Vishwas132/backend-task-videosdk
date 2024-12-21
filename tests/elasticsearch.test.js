@@ -23,6 +23,7 @@ describe("Elasticsearch Integration", () => {
         content: "Test content for search",
         type: "alert",
         priority: "high",
+        channel: ["email"],
       });
 
       mockElasticClient.index.mockResolvedValueOnce({ result: "created" });
@@ -47,6 +48,7 @@ describe("Elasticsearch Integration", () => {
         userId: "test-user",
         title: "Test Notification",
         content: "Test content",
+        channel: ["email"],
       });
 
       mockElasticClient.index.mockRejectedValueOnce(
@@ -123,6 +125,7 @@ describe("Elasticsearch Integration", () => {
         userId: "test-user",
         content: "Service XYZ is down",
         type: "alert",
+        channel: ["email"],
       };
 
       const mockSimilarNotifications = {
@@ -173,6 +176,7 @@ describe("Elasticsearch Integration", () => {
         userId: "test-user",
         content: "Service XYZ is down",
         type: "alert",
+        channel: ["email"],
       };
 
       mockElasticClient.search.mockResolvedValueOnce({

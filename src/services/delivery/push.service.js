@@ -52,7 +52,7 @@ class PushNotificationService {
         notificationId: notification._id,
         userId: notification.userId,
         status: "pending",
-        channel: "push",
+        channel: ["push"],
         lastAttemptAt: new Date(),
         deliveryAttempts: [],
       });

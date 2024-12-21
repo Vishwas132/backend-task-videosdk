@@ -20,7 +20,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Test Email",
         content: "Test content",
-        channel: "email",
+        channel: ["email"],
         status: "pending",
       });
 
@@ -55,7 +55,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Retry Test",
         content: "Test content",
-        channel: "email",
+        channel: ["email"],
         status: "pending",
       });
 
@@ -81,7 +81,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Max Retry Test",
         content: "Test content",
-        channel: "email",
+        channel: ["email"],
         status: "pending",
       });
 
@@ -107,7 +107,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Logging Test",
         content: "Test content",
-        channel: "email",
+        channel: ["email"],
         status: "pending",
       });
 
@@ -128,7 +128,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Error Logging Test",
         content: "Test content",
-        channel: "email",
+        channel: ["email"],
         status: "pending",
       });
 

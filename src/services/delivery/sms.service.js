@@ -52,7 +52,7 @@ class SmsService {
         notificationId: notification._id,
         userId: notification.userId,
         status: "pending",
-        channel: "sms",
+        channel: ["sms"],
         lastAttemptAt: new Date(),
         deliveryAttempts: [],
       });
