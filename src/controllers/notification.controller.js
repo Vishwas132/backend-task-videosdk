@@ -15,19 +15,16 @@ export class NotificationController {
         });
       }
 
-      // Create notification record
-      const notification = new Notification({
+      // Create and save notification record
+      const notification = await Notification.create({
         userId: req.body.userId,
         title: req.body.title,
         content: req.body.content,
         priority: req.body.priority || "medium",
-        channel: req.body.channel || "email",
+        channel: req.body.channel || ["email"],
         scheduledFor: req.body.scheduledFor || new Date(),
         metadata: req.body.metadata || {},
       });
-
-      // Save to database
-      await notification.save();
 
       // Publish to Kafka for processing
       await publishToKafka("notifications", {

@@ -32,8 +32,20 @@ export default function validateNotification(data) {
     errors.priority = "Priority must be one of: low, medium, high, urgent";
   }
 
-  if (data.channel && !["email", "sms", "push"].includes(data.channel)) {
-    errors.channel = "Channel must be one of: email, sms, push";
+  if (data.channel) {
+    const validChannels = ["email", "sms", "push"];
+    if (Array.isArray(data.channel)) {
+      const invalidChannels = data.channel.filter(
+        (ch) => !validChannels.includes(ch)
+      );
+      if (invalidChannels.length > 0) {
+        errors.channel = `Invalid channels: ${invalidChannels.join(
+          ", "
+        )}. Must be one of: email, sms, push`;
+      }
+    } else if (!validChannels.includes(data.channel)) {
+      errors.channel = "Channel must be one of: email, sms, push";
+    }
   }
 
   if (data.scheduledFor) {
