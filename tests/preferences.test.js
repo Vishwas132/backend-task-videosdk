@@ -53,14 +53,13 @@ describe("User Preferences API", () => {
     });
 
     it("should return default preferences for new user", async () => {
-      const newUserId = "new-user-123";
-
       const response = await request(app)
-        .get(`/api/preferences/${newUserId}`)
+        .get(`/api/preferences/${testUserId}`)
         .expect(200);
 
       expect(response.body.status).toBe("success");
-      expect(response.body.data.userId).toBe(newUserId);
+      expect(response.body.data.userId).toBe(testUserId);
+      expect(response.body.data.email).toBe(`${testUserId}@example.com`);
       expect(response.body.data.channels.email.enabled).toBe(true);
       expect(response.body.data.quietHours.enabled).toBe(false);
     });
