@@ -11,7 +11,6 @@ export class PreferenceController {
         data: preferences,
       });
     } catch (error) {
-      console.error("Error fetching preferences:", error);
       res.status(500).json({
         status: "error",
         message: "Failed to fetch preferences",
@@ -34,8 +33,6 @@ export class PreferenceController {
         data: preferences,
       });
     } catch (error) {
-      console.error("Error updating preferences:", error);
-
       // Handle validation errors
       if (
         error.message.includes("format") ||
@@ -67,7 +64,6 @@ export class PreferenceController {
         data: { isQuietHours },
       });
     } catch (error) {
-      console.error("Error checking quiet hours:", error);
       res.status(500).json({
         status: "error",
         message: "Failed to check quiet hours",
@@ -88,7 +84,6 @@ export class PreferenceController {
         data: { shouldThrottle },
       });
     } catch (error) {
-      console.error("Error checking throttle status:", error);
       res.status(500).json({
         status: "error",
         message: "Failed to check throttle status",
