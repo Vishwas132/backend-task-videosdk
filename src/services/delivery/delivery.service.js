@@ -47,23 +47,45 @@ class DeliveryService {
           }
 
           try {
+            const startTime = Date.now();
             await handler(notification);
-            await deliveryStatus.addDeliveryAttempt("success", null, null, {
-              channel,
+            const endTime = Date.now();
+
+            await DeliveryStatus.addDeliveryAttempt(deliveryStatus._id, {
+              status: "success",
+              metadata: { channel },
+              processingTime: endTime - startTime,
+              deliveryTime: 0, // Could be obtained from handler response if available
             });
-            results.push({ channel, success: true });
+
+            results.push({
+              channel,
+              success: true,
+              processingTime: endTime - startTime,
+            });
           } catch (error) {
             console.error(
               `Delivery failed for notification ${notification._id} on channel ${channel}:`,
               error
             );
-            await deliveryStatus.addDeliveryAttempt(
-              "failure",
-              null,
-              error.message,
-              { channel }
-            );
-            results.push({ channel, success: false, error });
+
+            await DeliveryStatus.addDeliveryAttempt(deliveryStatus._id, {
+              status: "failure",
+              errorCode: error.code || "DELIVERY_ERROR",
+              errorMessage: error.message,
+              metadata: {
+                channel,
+                errorDetails: error.details || {},
+                timestamp: new Date(),
+              },
+            });
+
+            results.push({
+              channel,
+              success: false,
+              error,
+              errorCode: error.code || "DELIVERY_ERROR",
+            });
           }
         }
         const successfulDeliveries = results.filter((r) => r.success);
