@@ -28,7 +28,13 @@ const notificationSchema = new Schema(
     },
     channel: {
       type: [String],
-      enum: ["email", "sms", "push"],
+      validate: {
+        validator: function (channels) {
+          const validChannels = ["email", "sms", "push"];
+          return channels.every((ch) => validChannels.includes(ch));
+        },
+        message: "Each channel must be one of: email, sms, push",
+      },
       default: ["email"],
     },
     scheduledFor: {
