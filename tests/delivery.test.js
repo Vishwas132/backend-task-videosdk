@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import deliveryService from "../src/services/delivery/delivery.service.js";
 import emailService from "../src/services/delivery/email.service.js";
+import smsService from "../src/services/delivery/sms.service.js";
+import pushService from "../src/services/delivery/push.service.js";
 import Notification from "../src/models/notification.js";
 import DeliveryStatus from "../src/models/deliveryStatus.js";
+import UserPreference from "../src/models/userPreference.js";
 
 // Mock delivery services
 vi.mock("../src/services/delivery/email.service.js");
@@ -10,42 +13,89 @@ vi.mock("../src/services/delivery/sms.service.js");
 vi.mock("../src/services/delivery/push.service.js");
 
 describe("Notification Delivery", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    await Notification.deleteMany({});
+    await DeliveryStatus.deleteMany({});
+    await UserPreference.deleteMany({});
   });
 
-  describe("Channel Selection", () => {
-    it("should deliver notification through email channel", async () => {
+  describe("Channel-specific Delivery", () => {
+    it("should deliver through email channel", async () => {
       const notification = await Notification.create({
         userId: "test-user",
-        title: "Test Email",
+        title: "Email Test",
         content: "Test content",
-        channel: ["email"],
+        channel: "email",
         status: "pending",
       });
 
+      emailService.sendWithRetry.mockResolvedValueOnce({ success: true });
       await deliveryService.deliverNotification(notification);
 
       expect(emailService.sendWithRetry).toHaveBeenCalledWith(notification);
-    });
-
-    it("should handle multiple delivery channels", async () => {
-      const notification = await Notification.create({
-        userId: "test-user",
-        title: "Multi-channel Test",
-        content: "Test content",
-        channel: ["email", "sms"],
-        status: "pending",
-      });
-
-      await deliveryService.deliverNotification(notification);
-
       const deliveryStatus = await DeliveryStatus.findOne({
         notificationId: notification._id,
       });
-      expect(deliveryStatus.channel).toHaveLength(2);
-      expect(deliveryStatus.channel).toContain("email");
-      expect(deliveryStatus.channel).toContain("sms");
+      expect(deliveryStatus.channel).toBe("email");
+      expect(deliveryStatus.status).toBe("delivered");
+    });
+
+    it("should deliver through SMS channel", async () => {
+      const notification = await Notification.create({
+        userId: "test-user",
+        title: "SMS Test",
+        content: "Test content",
+        channel: "sms",
+        status: "pending",
+      });
+
+      smsService.sendWithRetry.mockResolvedValueOnce({ success: true });
+      await deliveryService.deliverNotification(notification);
+
+      expect(smsService.sendWithRetry).toHaveBeenCalledWith(notification);
+      const deliveryStatus = await DeliveryStatus.findOne({
+        notificationId: notification._id,
+      });
+      expect(deliveryStatus.channel).toBe("sms");
+      expect(deliveryStatus.status).toBe("delivered");
+    });
+
+    it("should deliver through push notification channel", async () => {
+      const notification = await Notification.create({
+        userId: "test-user",
+        title: "Push Test",
+        content: "Test content",
+        channel: "push",
+        status: "pending",
+      });
+
+      pushService.sendWithRetry.mockResolvedValueOnce({ success: true });
+      await deliveryService.deliverNotification(notification);
+
+      expect(pushService.sendWithRetry).toHaveBeenCalledWith(notification);
+      const deliveryStatus = await DeliveryStatus.findOne({
+        notificationId: notification._id,
+      });
+      expect(deliveryStatus.channel).toBe("push");
+      expect(deliveryStatus.status).toBe("delivered");
+    });
+
+    it("should throw error for unsupported channel", async () => {
+      const notification = await Notification.create({
+        userId: "test-user",
+        title: "Invalid Channel Test",
+        content: "Test content",
+        channel: "email",
+        status: "pending",
+      });
+
+      // Modify the channel after creation to simulate an invalid channel
+      notification.channel = "invalid";
+
+      await expect(
+        deliveryService.deliverNotification(notification)
+      ).rejects.toThrow("Unsupported delivery channel: invalid");
     });
   });
 
@@ -55,7 +105,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Retry Test",
         content: "Test content",
-        channel: ["email"],
+        channel: "email",
         status: "pending",
       });
 
@@ -81,7 +131,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Max Retry Test",
         content: "Test content",
-        channel: ["email"],
+        channel: "email",
         status: "pending",
       });
 
@@ -90,14 +140,22 @@ describe("Notification Delivery", () => {
         new Error("Delivery failed")
       );
 
-      await deliveryService.deliverNotification(notification);
+      // Expect the delivery to throw an error after max retries
+      await expect(
+        deliveryService.deliverNotification(notification)
+      ).rejects.toThrow("Delivery failed");
 
+      // But the notification and delivery status should be marked as failed
       const deliveryStatus = await DeliveryStatus.findOne({
         notificationId: notification._id,
       });
       expect(deliveryStatus.status).toBe("failed");
-      expect(deliveryStatus.retryCount).toBeGreaterThan(0);
-      expect(deliveryStatus.failureReason.message).toBeDefined();
+      expect(deliveryStatus.retryCount).toBe(2); // Incremented for each failed attempt
+      expect(deliveryStatus.deliveryAttempts).toHaveLength(2); // Initial attempt + 1 retry
+      expect(deliveryStatus.failureReason.message).toBe("Delivery failed");
+
+      const updatedNotification = await Notification.findById(notification._id);
+      expect(updatedNotification.status).toBe("failed");
     });
   });
 
@@ -107,7 +165,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Logging Test",
         content: "Test content",
-        channel: ["email"],
+        channel: "email",
         status: "pending",
       });
 
@@ -128,7 +186,7 @@ describe("Notification Delivery", () => {
         userId: "test-user",
         title: "Error Logging Test",
         content: "Test content",
-        channel: ["email"],
+        channel: "email",
         status: "pending",
       });
 

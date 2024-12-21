@@ -21,7 +21,7 @@ export class NotificationController {
         title: req.body.title,
         content: req.body.content,
         priority: req.body.priority || "medium",
-        channel: req.body.channel || ["email"],
+        channel: req.body.channel || "email",
         scheduledFor: req.body.scheduledFor || new Date(),
         metadata: req.body.metadata || {},
       });

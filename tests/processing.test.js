@@ -5,6 +5,7 @@ import {
 } from "../src/services/processing/notification.processor.service.js";
 import Notification from "../src/models/notification.js";
 import DeliveryStatus from "../src/models/deliveryStatus.js";
+import UserPreference from "../src/models/userPreference.js";
 
 describe("Notification Processing", () => {
   beforeEach(async () => {
@@ -22,7 +23,7 @@ describe("Notification Processing", () => {
         priority: "high",
         status: "pending",
         scheduledFor: new Date(),
-        channel: ["email"],
+        channel: "email",
       });
 
       await processNotification(notification, "high");
@@ -42,7 +43,7 @@ describe("Notification Processing", () => {
         priority: "low",
         status: "pending",
         scheduledFor: futureTime,
-        channel: ["email"],
+        channel: "email",
       });
 
       await processNotification(notification, "low");
@@ -65,7 +66,7 @@ describe("Notification Processing", () => {
         priority: "medium",
         status: "pending",
         scheduledFor: new Date(),
-        channel: ["email"],
+        channel: "email",
       });
 
       await processNotification(notification, "medium");
@@ -86,7 +87,7 @@ describe("Notification Processing", () => {
         priority: "medium",
         status: "pending",
         scheduledFor: futureTime,
-        channel: ["email"],
+        channel: "email",
       });
 
       await processNotification(notification, "medium");
@@ -96,6 +97,134 @@ describe("Notification Processing", () => {
         notification._id
       );
       expect(unprocessedNotification.scheduledFor).toEqual(futureTime);
+    });
+  });
+
+  describe("Channel Selection", () => {
+    it("should select SMS for high priority notifications when enabled", async () => {
+      const userPrefs = await UserPreference.create({
+        userId: "test-user",
+        email: "test@example.com",
+        channels: {
+          email: { enabled: true, address: "test@example.com" },
+          sms: { enabled: true, phoneNumber: "+1234567890" },
+          push: { enabled: false },
+        },
+        priorityThresholds: {
+          email: "low",
+          sms: "high",
+          push: "medium",
+        },
+      });
+
+      const notification = await Notification.create({
+        userId: userPrefs.userId,
+        title: "High Priority Test",
+        content: "Test content",
+        priority: "high",
+        status: "pending",
+      });
+
+      await processNotification(notification, "high");
+
+      const processedNotification = await Notification.findById(
+        notification._id
+      );
+      expect(processedNotification.channel).toBe("sms");
+      expect(processedNotification.status).toBe("processing");
+    });
+
+    it("should select email for low priority notifications", async () => {
+      const userPrefs = await UserPreference.create({
+        userId: "test-user",
+        email: "test@example.com",
+        channels: {
+          email: { enabled: true, address: "test@example.com" },
+          sms: { enabled: true, phoneNumber: "+1234567890" },
+          push: { enabled: true, deviceTokens: ["device-token"] },
+        },
+        priorityThresholds: {
+          email: "low",
+          sms: "high",
+          push: "medium",
+        },
+      });
+
+      const notification = await Notification.create({
+        userId: userPrefs.userId,
+        title: "Low Priority Test",
+        content: "Test content",
+        priority: "low",
+        status: "pending",
+      });
+
+      await processNotification(notification, "low");
+
+      const processedNotification = await Notification.findById(
+        notification._id
+      );
+      expect(processedNotification.channel).toBe("email");
+      expect(processedNotification.status).toBe("processing");
+    });
+
+    it("should fallback to available channel when preferred channel is disabled", async () => {
+      const userPrefs = await UserPreference.create({
+        userId: "test-user",
+        email: "test@example.com",
+        channels: {
+          email: { enabled: true, address: "test@example.com" },
+          sms: { enabled: false, phoneNumber: null },
+          push: { enabled: false, deviceTokens: [] },
+        },
+        priorityThresholds: {
+          email: "low",
+          sms: "high",
+          push: "medium",
+        },
+      });
+
+      const notification = await Notification.create({
+        userId: userPrefs.userId,
+        title: "High Priority Test",
+        content: "Test content",
+        priority: "high",
+        status: "pending",
+      });
+
+      await processNotification(notification, "high");
+
+      const processedNotification = await Notification.findById(
+        notification._id
+      );
+      expect(processedNotification.channel).toBe("email");
+      expect(processedNotification.status).toBe("processing");
+    });
+
+    it("should fail when no channels are available", async () => {
+      const userPrefs = await UserPreference.create({
+        userId: "test-user",
+        email: "test@example.com",
+        channels: {
+          email: { enabled: false },
+          sms: { enabled: false },
+          push: { enabled: false },
+        },
+      });
+
+      const notification = await Notification.create({
+        userId: userPrefs.userId,
+        title: "No Channels Test",
+        content: "Test content",
+        priority: "medium",
+        status: "pending",
+      });
+
+      await processNotification(notification, "medium");
+
+      const processedNotification = await Notification.findById(
+        notification._id
+      );
+      expect(processedNotification.status).toBe("failed");
     });
   });
 
@@ -109,7 +238,7 @@ describe("Notification Processing", () => {
           priority: "low",
           status: "pending",
           scheduledFor: new Date(),
-          channel: ["email"],
+          channel: "email",
         }),
         Notification.create({
           userId: "test-user",
@@ -118,7 +247,7 @@ describe("Notification Processing", () => {
           priority: "high",
           status: "pending",
           scheduledFor: new Date(),
-          channel: ["email"],
+          channel: "email",
         }),
       ]);
 

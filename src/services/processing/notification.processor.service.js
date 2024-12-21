@@ -2,6 +2,7 @@ import { PriorityQueue } from "../../utils/priorityQueue.js";
 import Notification from "../../models/notification.js";
 import config from "../../config/index.js";
 import userPreferenceService from "../preferences/user.preference.service.js";
+import UserPreference from "../../models/userPreference.js";
 
 // Priority levels and their weights
 const PRIORITY_WEIGHTS = {
@@ -16,10 +17,58 @@ const immediateQueue = new PriorityQueue();
 const scheduledQueue = new PriorityQueue();
 
 /**
+ * Select appropriate delivery channel based on priority and user preferences
+ */
+async function selectDeliveryChannel(userId, priority) {
+  const userPrefs = await UserPreference.findOne({ userId });
+  if (!userPrefs) {
+    throw new Error("User preferences not found");
+  }
+
+  // Get available channels that meet priority threshold
+  const availableChannels = Object.entries(userPrefs.channels || {})
+    .filter(([_, config]) => config.enabled)
+    .map(([channel]) => channel);
+
+  if (availableChannels.length === 0) {
+    throw new Error("No suitable delivery channel available");
+  }
+
+  // For high priority, prefer SMS if enabled
+  if (
+    PRIORITY_WEIGHTS[priority] >= PRIORITY_WEIGHTS.high &&
+    availableChannels.includes("sms")
+  ) {
+    return "sms";
+  }
+
+  // For low priority, prefer email if enabled
+  if (
+    PRIORITY_WEIGHTS[priority] <= PRIORITY_WEIGHTS.low &&
+    availableChannels.includes("email")
+  ) {
+    return "email";
+  }
+
+  // Otherwise use first available channel as fallback
+  return availableChannels[0];
+}
+
+/**
  * Process a notification based on its priority and scheduling
  */
 export async function processNotification(notification, priority) {
   try {
+    // First update status based on priority and scheduling
+    const weight = PRIORITY_WEIGHTS[priority] || PRIORITY_WEIGHTS.medium;
+    const scheduledTime = notification.scheduledFor
+      ? new Date(notification.scheduledFor)
+      : new Date();
+    const now = new Date();
+
+    let status = "processing";
+    let channel;
+
     // Check for throttling unless it's an urgent notification
     if (priority !== "urgent") {
       const shouldThrottle =
@@ -38,20 +87,29 @@ export async function processNotification(notification, priority) {
       }
     }
 
-    const weight = PRIORITY_WEIGHTS[priority] || PRIORITY_WEIGHTS.medium;
-    const scheduledTime = notification.scheduledFor
-      ? new Date(notification.scheduledFor)
-      : new Date();
-    const now = new Date();
+    // Select delivery channel
+    try {
+      channel = await selectDeliveryChannel(notification.userId, priority);
+    } catch (error) {
+      status = "failed";
+      await Notification.findByIdAndUpdate(notification._id, {
+        status: "failed",
+        error: error.message,
+      });
+      return;
+    }
 
-    // Update notification status and add to appropriate queue based on scheduling and priority
+    // Update notification with channel and status
+    await Notification.findByIdAndUpdate(notification._id, {
+      status,
+      channel,
+      processedAt: new Date(),
+      priority: priority,
+    });
+
+    // Add to appropriate queue based on scheduling and priority
     if (priority === "urgent" || priority === "high") {
       // High priority notifications always go to immediate queue
-      await Notification.findByIdAndUpdate(notification._id, {
-        status: "processing",
-        processedAt: new Date(),
-        priority: priority,
-      });
       immediateQueue.enqueue(notification, weight);
       console.log(
         `Processing high priority notification ${notification._id} immediately`
@@ -59,21 +117,11 @@ export async function processNotification(notification, priority) {
       await processImmediateNotifications();
     } else if (scheduledTime <= now) {
       // Non-high priority but due now
-      await Notification.findByIdAndUpdate(notification._id, {
-        status: "processing",
-        processedAt: new Date(),
-        priority: priority,
-      });
       immediateQueue.enqueue(notification, weight);
       console.log(`Processing due notification ${notification._id}`);
       await processImmediateNotifications();
     } else {
       // Future scheduled notifications
-      await Notification.findByIdAndUpdate(notification._id, {
-        status: "processing",
-        scheduledFor: scheduledTime,
-        priority: priority,
-      });
       scheduledQueue.enqueue(notification, weight);
       console.log(
         `Scheduled notification ${notification._id} for ${scheduledTime}`
@@ -130,18 +178,10 @@ async function processImmediateNotifications() {
         updatedNotification.priority === "urgent" ||
         updatedNotification.priority === "high"
       ) {
-        await Notification.findByIdAndUpdate(notification._id, {
-          status: "processing",
-          processedAt: new Date(),
-        });
         console.log(
           `Processing high priority notification ${notification._id}`
         );
       } else {
-        await Notification.findByIdAndUpdate(notification._id, {
-          status: "processing",
-          processedAt: new Date(),
-        });
         console.log(
           `Processing normal priority notification ${notification._id}`
         );

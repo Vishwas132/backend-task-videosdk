@@ -19,7 +19,7 @@ describe("Notification API", () => {
     title: "Test Notification",
     content: "This is a test notification",
     priority: "high",
-    channel: ["email"],
+    channel: "email",
     scheduledFor: new Date(Date.now() + 60000).toISOString(), // 1 minute in the future
     metadata: {
       category: "test",

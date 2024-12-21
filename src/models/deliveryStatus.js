@@ -27,15 +27,9 @@ const deliveryStatusSchema = new Schema(
       index: true,
     },
     channel: {
-      type: [String],
+      type: String,
       enum: ["email", "sms", "push"],
       required: true,
-      validate: {
-        validator: function (v) {
-          return Array.isArray(v) && v.length > 0;
-        },
-        message: "At least one channel must be specified",
-      },
     },
     deliveryAttempts: [
       {

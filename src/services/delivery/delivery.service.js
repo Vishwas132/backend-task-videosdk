@@ -18,16 +18,18 @@ class DeliveryService {
    * Deliver a notification through the specified channels
    */
   async deliverNotification(notification) {
-    const channels = Array.isArray(notification.channel)
-      ? notification.channel
-      : [notification.channel];
+    const channel = notification.channel;
+    const handler = this.deliveryHandlers[channel];
+    if (!handler) {
+      throw new Error(`Unsupported delivery channel: ${channel}`);
+    }
 
     // Create initial delivery status
     let deliveryStatus = await DeliveryStatus.create({
       notificationId: notification._id,
       userId: notification.userId,
       status: "processing",
-      channel: channels,
+      channel: channel,
       deliveryAttempts: [],
       lastAttemptAt: new Date(),
       retryCount: 0,
@@ -38,98 +40,40 @@ class DeliveryService {
 
     while (retryCount < MAX_RETRIES) {
       try {
-        // Handle channels sequentially to avoid parallel saves
-        const results = [];
-        for (const channel of channels) {
-          const handler = this.deliveryHandlers[channel];
-          if (!handler) {
-            throw new Error(`Unsupported delivery channel: ${channel}`);
-          }
+        const startTime = Date.now();
+        await handler(notification);
+        const endTime = Date.now();
 
-          try {
-            const startTime = Date.now();
-            await handler(notification);
-            const endTime = Date.now();
+        await DeliveryStatus.addDeliveryAttempt(deliveryStatus._id, {
+          status: "success",
+          metadata: { channel },
+          processingTime: endTime - startTime,
+          deliveryTime: 0, // Could be obtained from handler response if available
+        });
 
-            await DeliveryStatus.addDeliveryAttempt(deliveryStatus._id, {
-              status: "success",
-              metadata: { channel },
-              processingTime: endTime - startTime,
-              deliveryTime: 0, // Could be obtained from handler response if available
-            });
-
-            results.push({
-              channel,
-              success: true,
-              processingTime: endTime - startTime,
-            });
-          } catch (error) {
-            console.error(
-              `Delivery failed for notification ${notification._id} on channel ${channel}:`,
-              error
-            );
-
-            await DeliveryStatus.addDeliveryAttempt(deliveryStatus._id, {
-              status: "failure",
-              errorCode: error.code || "DELIVERY_ERROR",
-              errorMessage: error.message,
-              metadata: {
-                channel,
-                errorDetails: error.details || {},
-                timestamp: new Date(),
-              },
-            });
-
-            results.push({
-              channel,
-              success: false,
-              error,
-              errorCode: error.code || "DELIVERY_ERROR",
-            });
-          }
-        }
-        const successfulDeliveries = results.filter((r) => r.success);
-        const failedDeliveries = results.filter((r) => !r.success);
-
-        // All channels succeeded
-        if (successfulDeliveries.length === channels.length) {
-          await Notification.findByIdAndUpdate(notification._id, {
-            status: "delivered",
-            deliveredAt: new Date(),
-          });
-          return;
-        }
-
-        // Some channels failed
-        retryCount++;
-
-        if (retryCount === MAX_RETRIES) {
-          const errors = failedDeliveries
-            .map((d) => `${d.channel}: ${d.error.message}`)
-            .join("; ");
-
-          await deliveryStatus.updateOne({
-            status: "failed",
-            failureReason: { message: errors },
-          });
-
-          await Notification.findByIdAndUpdate(notification._id, {
-            status: "failed",
-            error: errors,
-          });
-
-          throw new Error(
-            `Delivery failed after ${MAX_RETRIES} attempts: ${errors}`
-          );
-        }
-
-        // Fixed delay for tests, exponential backoff for production
-        const delay =
-          process.env.NODE_ENV === "test"
-            ? 100
-            : Math.pow(2, retryCount) * 1000;
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        // Update notification status to delivered
+        await Notification.findByIdAndUpdate(notification._id, {
+          status: "delivered",
+          deliveredAt: new Date(),
+        });
+        return;
       } catch (error) {
+        console.error(
+          `Delivery failed for notification ${notification._id} on channel ${channel}:`,
+          error
+        );
+
+        await DeliveryStatus.addDeliveryAttempt(deliveryStatus._id, {
+          status: "failure",
+          errorCode: error.code || "DELIVERY_ERROR",
+          errorMessage: error.message,
+          metadata: {
+            channel,
+            errorDetails: error.details || {},
+            timestamp: new Date(),
+          },
+        });
+
         retryCount++;
 
         if (retryCount === MAX_RETRIES) {
