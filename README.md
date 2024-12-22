@@ -1,6 +1,84 @@
 # Distributed Notification System
 
-A scalable notification system built with Node.js, MongoDB, Kafka, and Elasticsearch.
+A scalable notification system built with Node.js, MongoDB, Kafka, and Elasticsearch. The system provides a robust platform for handling notifications across multiple delivery channels with features like priority processing, user preferences, and comprehensive delivery tracking.
+
+## Implementation Details
+
+### Architecture Overview
+
+The system follows a microservices-inspired architecture with clear separation of concerns:
+
+1. **API Layer**
+
+   - RESTful endpoints for notification submission and preference management
+   - Input validation and request sanitization
+   - Swagger documentation for API discoverability
+
+2. **Message Queue Architecture**
+
+   - Kafka-based message broker for reliable message delivery
+   - Producer-consumer pattern for asynchronous processing
+   - Topics segregation for different notification priorities
+
+3. **Processing Pipeline**
+
+   - Priority queue implementation for message ordering
+   - Batch processing capabilities for improved throughput
+   - Elasticsearch integration for notification search and analytics
+
+4. **Delivery System**
+   - Modular delivery channels (Email, SMS, Push)
+   - Retry mechanism with exponential backoff
+   - Delivery status tracking and reporting
+
+### Design Choices
+
+1. **Technology Stack**
+
+   - Node.js/Express for its non-blocking I/O and rich ecosystem
+   - MongoDB for flexible document storage and scalability
+   - Kafka for reliable message queuing and high throughput
+   - Elasticsearch for efficient notification search
+
+2. **Code Organization**
+
+   - Service-based architecture for better modularity
+   - Controller-Service pattern for business logic separation
+   - Repository pattern for data access abstraction
+
+3. **Scalability Considerations**
+
+   - Horizontally scalable components
+   - Stateless API design
+   - Message queue for handling traffic spikes
+   - Caching layer for frequently accessed data
+
+4. **Reliability Features**
+   - Dead letter queues for failed messages
+   - Comprehensive error handling
+   - Retry mechanisms with backoff
+   - Transaction support for critical operations
+
+### Known Issues
+
+1. **Performance**
+
+   - Large batch processing can cause memory spikes
+   - Elasticsearch query optimization needed for complex searches
+   - Potential bottlenecks in priority queue implementation
+
+2. **Limitations**
+
+   - No real-time delivery status updates
+   - Limited support for custom delivery channels
+   - Basic rate limiting implementation
+   - Missing message templating system
+
+3. **Technical Debt**
+   - Need for improved error handling in some edge cases
+   - Better logging and monitoring implementation required
+   - Missing comprehensive integration tests
+   - Configuration management needs refinement
 
 ## Features
 
@@ -106,18 +184,19 @@ http://localhost:3000/api-docs
 1. **Ingestion Service**
 
    - Handles notification requests
-   - Validates input
-   - Publishes to Kafka
+   - Validates input using notification validator service
+   - Publishes to Kafka using producer service
 
 2. **Processing Service**
 
    - Consumes from Kafka
    - Implements priority queue
-   - Handles scheduling
+   - Processes notifications
+   - Integrates with Elasticsearch for search capabilities
 
 3. **Delivery Service**
 
-   - Manages delivery attempts
+   - Supports multiple delivery channels (Email, SMS, Push)
    - Implements retry mechanism
    - Tracks delivery status
 
@@ -129,34 +208,65 @@ http://localhost:3000/api-docs
 ### Technologies
 
 - **Node.js & Express**: Backend framework
-- **MongoDB**: Primary database
-- **Kafka**: Message queue for async processing
-- **Elasticsearch**: Search and analytics
-- **Docker**: Containerization
-- **Jest**: Testing framework
+- **MongoDB**: Primary database for storing notifications, preferences, and delivery status
+- **Kafka**: Message queue for asynchronous processing
+- **Elasticsearch**: Search and analytics engine
+- **Docker**: Containerization and service orchestration
+- **Vitest**: Testing framework with coverage support
 - **Swagger**: API documentation
 
 ## Project Structure
 
 ```
 /src
+  app.js            # Express application setup
+  server.js         # Server initialization
+  swagger.js        # Swagger configuration
+  /config           # Configuration settings
+    - index.js
+  /controllers      # Request handlers
+    - notification.controller.js
+    - preference.controller.js
+  /models          # MongoDB schemas
+    - notification.js
+    - userPreference.js
+    - deliveryStatus.js
+  /routes          # API routes
+    - notification.routes.js
+    - preference.routes.js
   /services
-    /ingestion      # Notification ingestion
-    /processing     # Priority-based processing
-    /delivery       # Multi-channel delivery
-    /preferences    # User preferences
-  /models          # Database schemas
-  /config          # Configuration
-  /utils           # Utilities
-/tests             # Test files
-/docker            # Docker configurations
+    /delivery      # Delivery channel implementations
+      - delivery.service.js
+      - email.service.js
+      - sms.service.js
+      - push.service.js
+    /ingestion     # Notification ingestion
+      - kafka.producer.service.js
+      - notification.validator.service.js
+    /processing    # Message processing
+      - kafka.consumer.service.js
+      - notification.processor.service.js
+      - notification.search.service.js
+      - processing.service.js
+    /preferences   # User preference management
+      - user.preference.service.js
+  /utils           # Utility functions
+    - database.js
+    - priorityQueue.js
+/tests            # Test files
+  - delivery.test.js
+  - elasticsearch.test.js
+  - notification.test.js
+  - preferences.test.js
+  - processing.test.js
+  - setup.js
 ```
 
 ## Error Handling
 
-- Input validation
+- Input validation using notification validator service
 - Retry mechanism for failed deliveries
-- Dead letter queues
+- Dead letter queues for undeliverable messages
 - Comprehensive error logging
 
 ## Monitoring
@@ -166,25 +276,20 @@ http://localhost:3000/api-docs
 - Performance metrics
 - Error logging
 
-## Future Improvements
+## Dependencies
 
-1. Additional delivery channels
-2. Advanced scheduling features
-3. Analytics dashboard
-4. Real-time notifications
-5. Message templating
-6. Batch processing
-7. Rate limiting per channel
-8. A/B testing support
+### Main Dependencies
 
-## Contributing
+- Express.js: Web framework
+- Mongoose: MongoDB ODM
+- KafkaJS: Kafka client
+- Elasticsearch: Search engine client
+- Swagger: API documentation
+- dotenv: Environment configuration
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+### Dev Dependencies
 
-## License
-
-ISC
+- Vitest: Testing framework
+- MongoDB Memory Server: In-memory MongoDB for testing
+- Nodemon: Development server
+- Supertest: HTTP testing
