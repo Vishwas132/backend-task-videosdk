@@ -1,45 +1,129 @@
 # Version control
-.git
+.git/
 .gitignore
+.gitattributes
+.github/
+.gitlab/
+.gitmodules
 
 # Dependencies
-node_modules
-npm-debug.log
-yarn-debug.log
-yarn-error.log
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+yarn.lock
 
-# Environment variables
+# Environment variables and secrets
 .env
 .env.*
+*.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.local
 
-# Development files
+# Development and IDE files
 *.md
-.vscode
-.idea
+.vscode/
+.idea/
+*.sublime-*
+.project
+.settings/
+.classpath
+*.code-workspace
+.history/
+
+# Testing
 *.test.js
+*.spec.js
+test/
 tests/
+__tests__/
 coverage/
+.nyc_output/
+jest.config.js
+vitest.config.js
+*.test.ts
+*.spec.ts
 
-# Docker
-Dockerfile
-docker-compose.yml
-.dockerignore
-
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Build output
+# Build and output
 dist/
 build/
+out/
+*.tsbuildinfo
+.next/
+.nuxt/
+.cache/
+public/
 
-# Logs
+# Logs and debugging
 logs/
 *.log
+debug/
+.debug/
+*.debug
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+docker/
 
 # Temporary files
 *.tmp
+*.temp
 .temp/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.cache/
+*.bak
+*.backup
 
-# Docker volumes
-docker/*/data/
+# Configuration files
+.eslintrc*
+.prettierrc*
+.stylelintrc*
+.editorconfig
+.babelrc*
+tsconfig.json
+jsconfig.json
+.browserslistrc
+.flowconfig
+
+# Documentation
+docs/
+documentation/
+*.pdf
+*.doc
+*.docx
+
+# Dependencies analysis
+.dependabot/
+.snyk
+
+# CI/CD
+.travis.yml
+.circleci/
+.gitlab-ci.yml
+.github/
+jenkins/
+.jenkins/
+
+# Misc
+*.zip
+*.tar.gz
+*.rar
+*.gz
+.htaccess
+*.csv
+*.xls
+*.xlsx
+*.psd
+*.ai
+*.sketch

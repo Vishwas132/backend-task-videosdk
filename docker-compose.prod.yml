@@ -2,17 +2,14 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:27017/notification-system
       - KAFKA_BROKERS=kafka:9092
       - ELASTICSEARCH_NODE=http://elasticsearch:9200
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
     depends_on:
       mongodb:
         condition: service_healthy
@@ -33,16 +30,28 @@ services:
           "--spider",
           "http://localhost:3000/health",
         ]
-      interval: 10s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
       start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
 
   mongodb:
     image: mongo:8.0.0
-    container_name: mongodb-dev
-    ports:
-      - "27017:27017" # Exposed for development
+    container_name: mongodb
+    # Removed port mapping for production - access internally
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -50,28 +59,38 @@ services:
     restart: unless-stopped
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
       start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   kafka:
     image: bitnami/kafka:3.6
-    container_name: kafka-dev
-    ports:
-      - "9092:9092" # Exposed for development
+    container_name: kafka
+    # Removed port mapping for production - access internally
     environment:
       - KAFKA_CFG_NODE_ID=1
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 # Changed to localhost for development
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_KRAFT_CLUSTER_ID=LPi7-HjwQYCZVyK_IQ5_PA
       - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_HEAP_OPTS=-Xmx512m -Xms512m
       - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=1
       - KAFKA_CFG_NUM_PARTITIONS=1
     volumes:
@@ -81,16 +100,23 @@ services:
     restart: unless-stopped
     healthcheck:
       test: kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
-    container_name: elasticsearch-dev
-    ports:
-      - "9200:9200" # Exposed for development
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3 # Updated Elasticsearch version
     environment:
       - node.name=es01
       - cluster.name=notification-es-cluster
@@ -98,7 +124,7 @@ services:
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - xpack.security.enabled=true
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-dev_password} # Default password for development
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD} # Using environment variable for password
     ulimits:
       memlock:
         soft: -1
@@ -108,18 +134,35 @@ services:
         hard: 65536
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
+    # Removed port mapping for production - access internally
     networks:
       - notification-network
     restart: unless-stopped
     healthcheck:
       test: |
         #!/bin/bash
-        PASSWORD=${ELASTIC_PASSWORD:-dev_password}
+        PASSWORD=${ELASTIC_PASSWORD}
+        if [ -z "$PASSWORD" ]; then
+          echo "ELASTIC_PASSWORD environment variable is not set."
+          exit 1
+        fi
         curl -s -u elastic:$PASSWORD http://localhost:9200/_cluster/health | grep -vq '"status":"red"'
-      interval: 20s
+      interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+        reservations:
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   mongodb_data:
@@ -132,4 +175,4 @@ volumes:
 networks:
   notification-network:
     driver: bridge
-    name: notification-network-dev
+    name: notification-network

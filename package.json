@@ -11,8 +11,11 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "docker:build": "docker-compose build",
+    "docker:build:prod": "docker-compose -f docker-compose.prod.yml build",
     "docker:up": "docker-compose up",
-    "docker:down": "docker-compose down"
+    "docker:up:prod": "docker-compose -f docker-compose.prod.yml up -d",
+    "docker:down": "docker-compose down",
+    "docker:down:prod": "docker-compose -f docker-compose.prod.yml down"
   },
   "keywords": [
     "notifications",
