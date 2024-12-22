@@ -122,32 +122,79 @@ The system follows a microservices-inspired architecture with clear separation o
 
 ## Running the Application
 
-### Development Mode
+### Local Development
 
 ```bash
-npm run dev
+# Run without Docker
+npm run dev  # Development mode with nodemon
+npm start    # Production mode
 ```
 
-### Production Mode
+### Docker Environments
+
+The application includes separate configurations for development and production environments.
+
+#### Development Environment
+
+Development setup includes:
+
+- Hot reloading with nodemon
+- Source code mounting
+- Exposed ports for all services
+- Development-friendly settings
+- Default development passwords
 
 ```bash
-npm start
-```
-
-### Using Docker
-
-Build and start all services:
-
-```bash
+# Build development containers
 npm run docker:build
+
+# Start development environment
 npm run docker:up
-```
 
-Stop all services:
-
-```bash
+# Stop development environment
 npm run docker:down
 ```
+
+Exposed ports in development:
+
+- Application: 3000
+- MongoDB: 27017
+- Kafka: 9092
+- Elasticsearch: 9200
+
+#### Production Environment
+
+Production setup includes:
+
+- Multi-stage builds for optimization
+- Resource limits and monitoring
+- Security-focused configuration
+- Production-grade logging
+- No exposed internal services
+
+```bash
+# Build production containers
+npm run docker:build:prod
+
+# Start production environment
+npm run docker:up:prod
+
+# Stop production environment
+npm run docker:down:prod
+```
+
+### Environment Files
+
+1. Development:
+
+   - Uses default docker-compose.yml
+   - Dockerfile configured for development
+   - Mounts source code for hot reloading
+
+2. Production:
+   - Uses docker-compose.prod.yml
+   - Dockerfile.prod with multi-stage builds
+   - Optimized for deployment
 
 ## Testing
 
