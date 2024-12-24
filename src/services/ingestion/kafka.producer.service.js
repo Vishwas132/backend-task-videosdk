@@ -10,12 +10,15 @@ class KafkaProducer {
 
     this.producer = this.kafka.producer();
     this.isConnected = false;
+    this.connecting = false; // Add a flag to prevent multiple concurrent connections
   }
 
   async connect() {
-    if (this.isConnected) {
+    if (this.isConnected || this.connecting) {
       return;
     }
+
+    this.connecting = true; // Set the flag to indicate that a connection attempt is in progress
 
     try {
       await this.producer.connect();
@@ -31,6 +34,8 @@ class KafkaProducer {
       console.error("Error connecting to Kafka:", error);
       this.isConnected = false;
       throw error;
+    } finally {
+      this.connecting = false; // Reset the flag after the connection attempt is complete
     }
   }
 
@@ -55,7 +60,7 @@ class KafkaProducer {
     }
 
     try {
-      await this.producer.send({
+      const messageMetadata = await this.producer.send({
         topic,
         messages: [
           {
@@ -73,6 +78,7 @@ class KafkaProducer {
         notificationId: message.notificationId,
         priority: message.priority,
       });
+      return messageMetadata;
     } catch (error) {
       console.error(`Error publishing message to Kafka topic ${topic}:`, error);
       throw error;
@@ -89,6 +95,4 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
-export function publishToKafka(topic, message) {
-  return kafkaProducer.publishToKafka(topic, message);
-}
+export default kafkaProducer;

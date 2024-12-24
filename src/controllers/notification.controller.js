@@ -1,6 +1,6 @@
 import Notification from "../models/notification.js";
 import validateNotification from "../services/ingestion/notification.validator.service.js";
-import { publishToKafka } from "../services/ingestion/kafka.producer.service.js";
+import kafkaProducer from "../services/ingestion/kafka.producer.service.js";
 
 export class NotificationController {
   static async create(req, res) {
@@ -27,7 +27,7 @@ export class NotificationController {
       });
 
       // Publish to Kafka for processing
-      await publishToKafka("notifications", {
+      await kafkaProducer.publishToKafka("notifications", {
         notificationId: notification._id,
         userId: notification.userId,
         priority: notification.priority,
