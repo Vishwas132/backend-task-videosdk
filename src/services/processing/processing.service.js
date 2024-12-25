@@ -31,6 +31,9 @@ class ProcessingService {
         5000 // Run every 5 seconds
       );
 
+      // Start batch processor for low-priority notifications
+      await batchProcessor.start();
+
       this.isRunning = true;
       console.log("Processing service started successfully");
     } catch (error) {
@@ -51,6 +54,9 @@ class ProcessingService {
         clearInterval(this.schedulerInterval);
         this.schedulerInterval = null;
       }
+
+      // Stop batch processor
+      await batchProcessor.stop();
 
       // Disconnect Kafka consumer
       await kafkaConsumer.disconnect();
