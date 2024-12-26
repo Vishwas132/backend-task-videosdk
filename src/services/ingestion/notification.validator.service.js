@@ -34,16 +34,7 @@ export default function validateNotification(data) {
 
   if (data.channel) {
     const validChannels = ["email", "sms", "push"];
-    if (Array.isArray(data.channel)) {
-      const invalidChannels = data.channel.filter(
-        (ch) => !validChannels.includes(ch)
-      );
-      if (invalidChannels.length > 0) {
-        errors.channel = `Invalid channels: ${invalidChannels.join(
-          ", "
-        )}. Must be one of: email, sms, push`;
-      }
-    } else if (!validChannels.includes(data.channel)) {
+    if (!validChannels.includes(data.channel)) {
       errors.channel = "Channel must be one of: email, sms, push";
     }
   }
